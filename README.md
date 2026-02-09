@@ -34,8 +34,6 @@
 3. **AI Analysis:** The script sends the `git diff` and the current `getting-started.md` to Gemini 2.0.
 4. **Report Generation:** The AI evaluates if the documentation still matches the code. If not, it prints a suggested rewrite in the workflow logs.
 
-[Image of a sequence diagram showing a GitHub push triggering a Python audit script that queries Gemini AI and logs documentation updates]
-
 ---
 
 ## 📈 Future Roadmap
