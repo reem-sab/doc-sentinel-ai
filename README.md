@@ -34,8 +34,16 @@
 3. **AI Analysis:** The script sends the `git diff` and the current `getting-started.md` to Gemini 2.0.
 4. **Report Generation:** The AI evaluates if the documentation still matches the code. If not, it prints a suggested rewrite in the workflow logs.
 
+
+
 ---
 
 ## 📈 Future Roadmap
 - [ ] Support for multiple documentation files and folders.
-- [ ] Automatic Pull Request comments with
+- [ ] Automatic Pull Request comments with suggested doc fixes.
+- [ ] Integration with Slack/Discord for team notifications.
+
+---
+
+## 👤 Author
+**Reem Sabawi** *Senior Technical Writer | Technical Writing Educator* [LinkedIn](https://www.linkedin.com/in/reem-s-78187b1b9/) | [Portfolio](https://reemsabawi-portfolio.notion.site/Reem-Sabawi-s-Professional-Portfolio-2fa1fb910d8180ce86b0ef3542ef9506)
