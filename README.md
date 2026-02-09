@@ -1,47 +1,50 @@
-# 🤖 Doc-Sentinel AI: Automated Documentation Auditor
+# 🤖 Doc-Sentinel AI: Agentic Documentation Auditor
 
-**Doc-Sentinel AI** is a CI/CD-integrated tool that ensures your technical documentation never falls behind your code. By leveraging **Google Gemini 2.0 Flash** and **GitHub Actions**, it automatically audits code changes (diffs) against existing Markdown files to detect "Doc Debt."
+**Doc-Sentinel AI** is a CI/CD-integrated agent that ensures technical documentation never falls behind the source code. By leveraging **Google Gemini 2.0 Flash** and **GitHub Actions**, it automatically detects "Documentation Drift" and suggests precise updates.
 
 ---
 
 ## 🚀 Key Features
-- **Semantic Audit:** Uses Generative AI to understand the *intent* of code changes, not just keyword matching.
-- **Automated CI/CD:** Runs on every `push` or `pull_request` via GitHub Actions.
-- **Context-Aware Suggestions:** Provides ready-to-paste Markdown updates when it detects outdated documentation.
-- **Scalable Infrastructure:** Built with a "Docs-as-Code" philosophy, easily adaptable for large-scale documentation sites (Docusaurus, Sphinx, etc.).
+- **Semantic Analysis:** Uses Gemini 2.0 to understand the *intent* of code changes (diffs), not just keyword matching.
+- **CI/CD Integration:** Runs autonomously on every `push` or `pull_request` via GitHub Actions.
+- **Context-Aware Recommendations:** Generates ready-to-use Markdown updates when discrepancies are found.
+- **Agentic Design:** Operates as a "Knowledge Agent" that observes, reasons, and reports findings without human intervention.
 
 ---
 
 ## 🛠 Tech Stack
-- **Language:** Python 3.10
 - **AI Brain:** Google Gemini 2.0 Flash (Generative AI SDK)
+- **Language:** Python 3.10
 - **Automation:** GitHub Actions (CI/CD)
 - **API Integration:** PyGithub (GitHub REST API)
-- **Security:** GitHub Secrets for encrypted API management
+- **Environment:** Secure secrets management for API authentication
 
 ---
 
 ## 📂 Project Structure
-- `audit.py`: The core logic that retrieves GitHub data and communicates with Gemini.
-- `getting-started.md`: A sample documentation file used for auditing.
-- `.github/workflows/doc-audit.yml`: The automation "recipe" that runs the auditor in the cloud.
+- `audit.py`: The core AI agent logic for data retrieval and analysis.
+- `.github/workflows/doc-audit.yml`: The automation recipe for cloud execution.
+- `getting-started.md`: Target documentation for real-time auditing.
 
 ---
 
-## 🧪 How It Works (The Audit Flow)
-1. **Developer Pushes Code:** A code change is pushed to the repository.
-2. **GitHub Action Triggers:** A virtual environment is spun up, installing necessary dependencies.
-3. **AI Analysis:** The script sends the `git diff` and the current `getting-started.md` to Gemini 2.0.
-4. **Report Generation:** The AI evaluates if the documentation still matches the code. If not, it prints a suggested rewrite in the workflow logs.
+## 🧪 The Audit Workflow
+1. **Trigger:** A developer pushes a code change to the repository.
+2. **Perception:** The agent uses the GitHub API to fetch the latest `git diff` and the corresponding documentation.
+3. **Reasoning:** Gemini 2.0 evaluates the code change against the text. 
+4. **Action:** If the docs are outdated, the agent logs a concise, updated version of the Markdown in the CI/CD dashboard.
 
 
 
 ---
 
-## 📈 Future Roadmap
-- [ ] Support for multiple documentation files and folders.
-- [ ] Automatic Pull Request comments with suggested doc fixes.
-- [ ] Integration with Slack/Discord for team notifications.
+## 🗺️ Roadmap: The Agentic Evolution
+To maintain professional risk management, this project follows a phased rollout:
+
+- [x] **Phase 1:** Automated detection and reporting (Current).
+- [ ] **Phase 2:** Support for multi-file audits and recursive directory scanning.
+- [ ] **Phase 3 (High Impact):** **Auto-Fix Mode.** Enable the agent to automatically open a Pull Request with the corrected documentation for human review.
+- [ ] **Phase 4:** Real-time team notifications via Slack/Teams.
 
 ---
 
