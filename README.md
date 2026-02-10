@@ -1,52 +1,49 @@
-# 🤖 Doc-Sentinel AI: Agentic Documentation Auditor
+# 🤖 Doc-Sentinel AI: Agentic Documentation Governance
 
-**Doc-Sentinel AI** is a CI/CD-integrated agent that ensures technical documentation never falls behind the source code. By leveraging **Google Gemini 2.0 Flash** and **GitHub Actions**, it automatically detects "Documentation Drift" and suggests precise updates.
+**Doc-Sentinel AI** is a CI/CD-integrated solution designed to eliminate **Documentation Debt**—the widening gap between rapid code deployment and accurate technical content. By leveraging **Google Gemini 2.0 Flash** and **GitHub Actions**, it provides a scalable "safety net" for technical accuracy in high-velocity development environments.
+
+
 
 ---
 
-## 🚀 Key Features
-- **Semantic Analysis:** Uses Gemini 2.0 to understand the *intent* of code changes (diffs), not just keyword matching.
-- **CI/CD Integration:** Runs autonomously on every `push` or `pull_request` via GitHub Actions.
-- **Context-Aware Recommendations:** Generates ready-to-use Markdown updates when discrepancies are found.
-- **Agentic Design:** Operates as a "Knowledge Agent" that observes, reasons, and reports findings without human intervention.
+## 🎯 The Product Vision
+In complex cloud ecosystems (like AWS Greengrass), a single casing error in a parameter (e.g., `DeviceID` vs `deviceid`) can break a customer's production environment. **Doc-Sentinel** acts as a "First Responder" for technical truth, ensuring that every code push is automatically reconciled with its documentation to reduce support overhead and improve **Developer Experience (DX)**.
+
+---
+
+## 🚀 Strategic Features
+* **Semantic Integrity Audits:** Uses LLM orchestration to understand the *intent* of code changes, identifying logic shifts that traditional regex-based linters miss.
+* **Zero-Friction CI/CD:** Operates natively within the **SDLC** via GitHub Actions, ensuring governance doesn't slow down the release cycle.
+* **Risk-Based Reporting:** Flags "Critical" discrepancies in parameters and function signatures, prioritizing documentation that impacts system stability.
+* **Agentic Perception:** Autonomously observes code diffs, reasons through technical impact, and generates precise remediation steps without human prompting.
 
 ---
 
 ## 🛠 Tech Stack
-- **AI Brain:** Google Gemini 2.0 Flash (Generative AI SDK)
-- **Language:** Python 3.10
-- **Automation:** GitHub Actions (CI/CD)
-- **API Integration:** PyGithub (GitHub REST API)
-- **Environment:** Secure secrets management for API authentication
+* **LLM Orchestration:** Google Gemini 2.0 Flash (Optimized for 1M+ token context windows)
+* **System Logic:** Python 3.10 & PyGithub
+* **Cloud Infrastructure:** GitHub Actions (CI/CD)
+* **Governance:** Secure environment secret management for API authentication
 
 ---
 
-## 📂 Project Structure
-- `audit.py`: The core AI agent logic for data retrieval and analysis.
-- `.github/workflows/doc-audit.yml`: The automation recipe for cloud execution.
-- `getting-started.md`: Target documentation for real-time auditing.
-
----
-
-## 🧪 The Audit Workflow
-1. **Trigger:** A developer pushes a code change to the repository.
-2. **Perception:** The agent uses the GitHub API to fetch the latest `git diff` and the corresponding documentation.
-3. **Reasoning:** Gemini 2.0 evaluates the code change against the text. 
-4. **Action:** If the docs are outdated, the agent logs a concise, updated version of the Markdown in the CI/CD dashboard.
+## 🧪 The Governance Workflow
+1.  **Event Trigger:** A developer pushes a code change (e.g., updating a function signature or parameter casing).
+2.  **State Capture:** The agent fetches the latest `git diff` and corresponding documentation via the GitHub API.
+3.  **Cross-Functional Analysis:** Gemini 2.0 evaluates the code change against the Markdown to detect "Technical Drift." 
+4.  **Strategic Remediation:** If a mismatch is found, the agent logs a ready-to-use update, reducing the time-to-fix from hours to seconds.
 
 
 
 ---
 
-## 🗺️ Roadmap: The Agentic Evolution
-To maintain professional risk management, this project follows a phased rollout:
-
-- [x] **Phase 1:** Automated detection and reporting (Current).
-- [ ] **Phase 2:** Support for multi-file audits and recursive directory scanning.
-- [ ] **Phase 3 (High Impact):** **Auto-Fix Mode.** Enable the agent to automatically open a Pull Request with the corrected documentation for human review.
-- [ ] **Phase 4:** Real-time team notifications via Slack/Teams.
+## 🗺️ Roadmap: Scaling the Impact
+* [x] **Phase 1: Automated Detection & Reporting** (Current MVP)
+* [ ] **Phase 2: Global Repository Health** (Support for multi-file audits and recursive scanning)
+* [ ] **Phase 3: Autonomous Remediation** (Agent opens a PR with corrected documentation for human review)
+* [ ] **Phase 4: Stakeholder Dashboard** (Strategic oversight for Product Managers and Documentation Leads)
 
 ---
 
 ## 👤 Author
-**Reem Sabawi** *Senior Technical Writer | Technical Writing Educator* [LinkedIn](https://www.linkedin.com/in/reem-s-78187b1b9/) | [Portfolio](https://reemsabawi-portfolio.notion.site/Reem-Sabawi-s-Professional-Portfolio-2fa1fb910d8180ce86b0ef3542ef9506)
+**Reem Sabawi** *Senior Technical Writer | Technical Writing Educator | Aspiring Product Manager* [LinkedIn](https://www.linkedin.com/in/reem-s-78187b1b9/) | [Portfolio](https://reemsabawi-portfolio.notion.site/Reem-Sabawi-s-Professional-Portfolio-2fa1fb910d8180ce86b0ef3542ef9506)
