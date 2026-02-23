@@ -2,11 +2,15 @@ name: AI Documentation Audit
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
 jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
@@ -15,4 +19,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          REPO_NAME: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: python audit.py
