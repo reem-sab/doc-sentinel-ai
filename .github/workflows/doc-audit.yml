@@ -17,8 +17,9 @@ jobs:
       - run: pip install PyGithub google-genai python-dotenv
       - name: Run AI Audit
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-          REPO_NAME: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  REPO_NAME: ${{ github.repository }}
+  PR_NUMBER: ${{ github.event.pull_request.number }}
         run: python audit.py
