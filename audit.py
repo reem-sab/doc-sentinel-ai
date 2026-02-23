@@ -1,7 +1,7 @@
 import os
 import subprocess
 from github import Github, Auth
-from google import genai
+from anthropic import Anthropic
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -10,7 +10,7 @@ auth = Auth.Token(os.getenv("GITHUB_TOKEN"))
 g = Github(auth=auth)
 REPO_NAME = os.getenv("REPO_NAME", "reem-sab/doc-sentinel-ai")
 
-client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 
 def get_real_docs(filename="getting-started.md"):
@@ -31,23 +31,28 @@ def get_real_diff():
 
 
 def run_audit(diff, docs):
-    prompt = (
-        "You are a Senior Technical Writer reviewing a code change for documentation accuracy.\n\n"
-        "## Code Change (Diff)\n"
-        f"{diff}\n\n"
-        "## Current Documentation\n"
-        f"{docs}\n\n"
-        "## Your Task\n"
-        "1. Analyze whether this code change makes the documentation outdated or inaccurate.\n"
-        "2. If YES: Respond with a severity label (Critical / Minor), a one-sentence explanation "
-        "of what drifted, and a corrected Markdown snippet ready to paste in.\n"
-        "3. If NO: Respond only with: Documentation is up to date."
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=1024,
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    "You are a Senior Technical Writer reviewing a code change for documentation accuracy.\n\n"
+                    "## Code Change (Diff)\n"
+                    f"{diff}\n\n"
+                    "## Current Documentation\n"
+                    f"{docs}\n\n"
+                    "## Your Task\n"
+                    "1. Analyze whether this code change makes the documentation outdated or inaccurate.\n"
+                    "2. If YES: Respond with a severity label (Critical / Minor), a one-sentence explanation "
+                    "of what drifted, and a corrected Markdown snippet ready to paste in.\n"
+                    "3. If NO: Respond only with: Documentation is up to date."
+                )
+            }
+        ]
     )
-    response = client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=prompt
-    )
-    return response.text
+    return message.content[0].text
 
 
 def post_pr_comment(result):
