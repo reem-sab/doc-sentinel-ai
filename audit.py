@@ -29,8 +29,61 @@ def get_real_diff():
     return result.stdout or "No diff available."
 
 
+def build_prompt(diff, docs):
+    lines = [
+        "You are a Senior Technical Writer reviewing a code change for documentation accuracy.",
+        "",
+        "## Code Change (Diff)",
+        diff,
+        "",
+        "## Current Documentation",
+        docs,
+        "",
+        "## Your Task",
+        "1. Analyze whether this code change makes the documentation outdated or inaccurate.",
+        "2. If YES: Respond with a severity label (Critical / Minor), a one-sentence explanation of what drifted, and a corrected Markdown snippet ready to paste in.",
+        "3. If NO: Respond only with: Documentation is up to date.",
+    ]
+    return "\n".join(lines)
+
+
 def run_audit(diff, docs):
-    contents = "You are a Senior Technical Writer reviewing a code change for documentation accuracy.\n\n"
-    contents += "## Code Change (Diff)\n"
-    contents += diff + "\n\n"
-    contents += "## Curr
+    contents = build_prompt(diff, docs)
+    for attempt in range(3):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=contents
+            )
+            return response.text
+        except Exception as e:
+            if "429" in str(e) and attempt < 2:
+                print("Rate limited, retrying in 30 seconds...")
+                time.sleep(30)
+            else:
+                raise
+
+
+def post_pr_comment(result):
+    pr_number = os.getenv("PR_NUMBER")
+    if not pr_number:
+        return
+    repo = g.get_repo(REPO_NAME)
+    pr = repo.get_pull(int(pr_number))
+    pr.create_issue_comment("## Doc-Sentinel Audit\n\n" + result)
+    print("Comment posted to PR.")
+
+
+try:
+    print("Connecting to repo: " + REPO_NAME)
+    current_docs = get_real_docs()
+    diff = get_real_diff()
+    print("Diff captured. Running audit...")
+    result = run_audit(diff, current_docs)
+    print("\n--- AI AUDIT RESULT ---")
+    print(result)
+    post_pr_comment(result)
+
+except Exception as e:
+    print("Error: " + str(e))
+    raise
