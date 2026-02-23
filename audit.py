@@ -20,8 +20,6 @@ def get_real_docs(filename="getting-started.md"):
 
 
 def get_real_diff():
-    """Pull the actual git diff from the environment (set by GitHub Actions)
-    or fall back to comparing HEAD~1 locally for development."""
     diff = os.getenv("GIT_DIFF")
     if diff:
         return diff
@@ -33,7 +31,48 @@ def get_real_diff():
 
 
 def run_audit(diff, docs):
-    prompt = f"""
-You are a Senior Technical Writer reviewing a code change for documentation accuracy.
+    prompt = (
+        "You are a Senior Technical Writer reviewing a code change for documentation accuracy.\n\n"
+        "## Code Change (Diff)\n"
+        f"{diff}\n\n"
+        "## Current Documentation\n"
+        f"{docs}\n\n"
+        "## Your Task\n"
+        "1. Analyze whether this code change makes the documentation outdated or inaccurate.\n"
+        "2. If YES: Respond with a severity label (Critical / Minor), a one-sentence explanation "
+        "of what drifted, and a corrected Markdown snippet ready to paste in.\n"
+        "3. If NO: Respond only with: Documentation is up to date."
+    )
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=prompt
+    )
+    return response.text
 
-## Code Change (Diff)
+
+def post_pr_comment(result):
+    pr_number = os.getenv("PR_NUMBER")
+    if not pr_number:
+        return
+    repo = g.get_repo(REPO_NAME)
+    pr = repo.get_pull(int(pr_number))
+    pr.create_issue_comment(f"## Doc-Sentinel Audit\n\n{result}")
+    print("Comment posted to PR.")
+
+
+try:
+    print(f"Connecting to repo: {REPO_NAME}")
+    current_docs = get_real_docs()
+    diff = get_real_diff()
+
+    print(f"Diff captured ({len(diff)} chars). Running audit...")
+    result = run_audit(diff, current_docs)
+
+    print("\n--- AI AUDIT RESULT ---")
+    print(result)
+
+    post_pr_comment(result)
+
+except Exception as e:
+    print(f"Error: {e}")
+    raise
