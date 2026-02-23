@@ -1,5 +1,6 @@
 import os
 import subprocess
+import time
 from github import Github, Auth
 from google import genai
 from dotenv import load_dotenv
@@ -23,5 +24,13 @@ def get_real_diff():
     diff = os.getenv("GIT_DIFF")
     if diff:
         return diff
-    result = subprocess.run(
-        ["git", "diff", "HEAD~1", "HEAD", "--", "*.py", "*.md"],
+    cmd = ["git", "diff", "HEAD~1", "HEAD", "--", "*.py", "*.md"]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    return result.stdout or "No diff available."
+
+
+def run_audit(diff, docs):
+    contents = "You are a Senior Technical Writer reviewing a code change for documentation accuracy.\n\n"
+    contents += "## Code Change (Diff)\n"
+    contents += diff + "\n\n"
+    contents += "## Curr
