@@ -10,10 +10,11 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     
-    # Required to allow the GITHUB_TOKEN to post comments
+    # Permissions for both commenting and labeling
     permissions:
       contents: read
       pull-requests: write
+      issues: write
 
     steps:
       - name: Checkout code
@@ -30,12 +31,37 @@ jobs:
         run: pip install PyGithub google-genai python-dotenv
 
       - name: Run AI Audit
-        # This 'if' prevents the script from running on direct pushes to main
-        # where there is no PR number to comment on.
+        id: run_audit
         if: github.event_name == 'pull_request'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           REPO_NAME: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+        # Note: If your audit.py fails, this step will fail. 
+        # You can add 'continue-on-error: true' if you want labels to apply anyway.
         run: python audit.py
+
+      - name: Label PR on Success
+        if: success() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.addLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['AI-Audited', 'Docs: Checked']
+            })
+
+      - name: Label PR on Failure
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.addLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['Docs: Action Required', 'Audit-Failed']
+            })
