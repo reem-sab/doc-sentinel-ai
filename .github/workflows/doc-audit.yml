@@ -1,4 +1,5 @@
 name: AI Documentation Audit
+
 on:
   push:
     branches: [ main ]
@@ -8,23 +9,30 @@ on:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    # Added permissions to allow posting comments to the PR
+    
+    # Required to allow the GITHUB_TOKEN to post comments
     permissions:
       contents: read
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 2
 
-      - uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - run: pip install PyGithub google-genai python-dotenv
+      - name: Install dependencies
+        run: pip install PyGithub google-genai python-dotenv
 
       - name: Run AI Audit
+        # This 'if' prevents the script from running on direct pushes to main
+        # where there is no PR number to comment on.
+        if: github.event_name == 'pull_request'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
