@@ -1,8 +1,8 @@
 import os
 import subprocess
 import time
+import google.generativeai as genai
 from github import Github, Auth
-from google import genai
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -11,7 +11,8 @@ auth = Auth.Token(os.getenv("GITHUB_TOKEN"))
 g = Github(auth=auth)
 REPO_NAME = os.getenv("REPO_NAME", "reem-sab/doc-sentinel-ai")
 
-client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+model = genai.GenerativeModel("gemini-pro")
 
 
 def get_real_docs(filename="getting-started.md"):
@@ -48,13 +49,10 @@ def build_prompt(diff, docs):
 
 
 def run_audit(diff, docs):
-    contents = build_prompt(diff, docs)
+    prompt = build_prompt(diff, docs)
     for attempt in range(3):
         try:
-            response = client.models.generate_content(
-                model="models/gemini-1.5-flash",
-                contents=contents
-            )
+            response = model.generate_content(prompt)
             return response.text
         except Exception as e:
             if "429" in str(e) and attempt < 2:
