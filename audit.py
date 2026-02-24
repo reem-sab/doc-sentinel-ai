@@ -20,7 +20,7 @@ def get_pr_diff():
     """Fetches the diff of the current Pull Request."""
     repo = g.get_repo(REPO_NAME)
     pr = repo.get_pull(int(PR_NUMBER))
-    comparison = repo.get_compare(pr.base.sha, pr.head.sha)
+    comparison = repo.compare(pr.base.sha, pr.head.sha)
     files = comparison.files
     
     full_diff = ""
