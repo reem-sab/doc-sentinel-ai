@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ main ]
 
-# Prevents multiple runs from clashing if you push quickly
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
