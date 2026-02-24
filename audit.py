@@ -1,92 +1,72 @@
 import os
-import subprocess
-import time
+import sys
 from github import Github, Auth
 from google import genai
 from dotenv import load_dotenv
 
+# 1. Setup & Authentication
 load_dotenv()
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+REPO_NAME = os.getenv("REPO_NAME")
+PR_NUMBER = os.getenv("PR_NUMBER")
 
-auth = Auth.Token(os.getenv("GITHUB_TOKEN"))
+# Initialize Clients
+auth = Auth.Token(GITHUB_TOKEN)
 g = Github(auth=auth)
-REPO_NAME = os.getenv("REPO_NAME", "reem-sab/doc-sentinel-ai")
+client = genai.Client(api_key=GOOGLE_API_KEY)
 
-client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-
-
-def get_real_docs(filename="getting-started.md"):
+def get_pr_diff():
+    """Fetches the diff of the current Pull Request."""
     repo = g.get_repo(REPO_NAME)
-    file_content = repo.get_contents(filename)
+    pr = repo.get_pull(int(PR_NUMBER))
+    # We get the 'diff' format specifically to show the changes
+    comparison = repo.get_compare(pr.base.sha, pr.head.sha)
+    files = comparison.files
+    
+    full_diff = ""
+    affected_filenames = []
+    
+    for file in files:
+        full_diff += f"File: {file.filename}\n{file.patch}\n\n"
+        affected_filenames.append(file.filename)
+        
+    return full_diff, affected_filenames
+
+def get_existing_docs():
+    """Fetches the main documentation file to compare against."""
+    repo = g.get_repo(REPO_NAME)
+    # Update this path to your specific docs file (e.g., 'README.md' or 'docs/index.md')
+    file_content = repo.get_contents("getting-started.md", ref="main")
     return file_content.decoded_content.decode()
 
+def run_ai_audit(diff, docs):
+    """Sends the diff and docs to Gemini for analysis."""
+    prompt = f"""
+    You are a Senior Technical Writer and Documentation Auditor.
+    
+    TASK:
+    Review the following code changes (Diff) against the existing documentation.
+    Determine if the documentation is now outdated or missing new features.
+    
+    - If documentation needs updates: Start your response with 'YES'.
+    - If documentation is fine: Start your response with 'NO'.
+    
+    Provide a concise explanation and, if 'YES', provide the suggested Markdown fix.
+    
+    CODE CHANGE (DIFF):
+    {diff}
+    
+    EXISTING DOCUMENTATION:
+    {docs}
+    """
+    
+    response = client.models.generate_content(
+        model="gemini-1.5-flash",
+        contents=prompt
+    )
+    return response.text
 
-def get_real_diff():
-    diff = os.getenv("GIT_DIFF")
-    if diff:
-        return diff
-    cmd = ["git", "diff", "HEAD~1", "HEAD", "--", "*.py", "*.md"]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    return result.stdout or "No diff available."
-
-
-def build_prompt(diff, docs):
-    lines = [
-        "You are a Senior Technical Writer reviewing a code change for documentation accuracy.",
-        "",
-        "## Code Change (Diff)",
-        diff,
-        "",
-        "## Current Documentation",
-        docs,
-        "",
-        "## Your Task",
-        "1. Analyze whether this code change makes the documentation outdated or inaccurate.",
-        "2. If YES: Respond with a severity label (Critical / Minor), a one-sentence explanation of what drifted, and a corrected Markdown snippet ready to paste in.",
-        "3. If NO: Respond only with: Documentation is up to date.",
-    ]
-    return "\n".join(lines)
-
-
-def run_audit(diff, docs):
-    prompt = build_prompt(diff, docs)
-    for attempt in range(3):
-        try:
-            response = client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt
-            )
-            return response.text
-        except Exception as e:
-            if "429" in str(e) and attempt < 2:
-                print("Rate limited, retrying in 30 seconds...")
-                time.sleep(30)
-            else:
-                raise
-
-
-def post_pr_comment(result):
-    pr_number = os.getenv("PR_NUMBER")
-    if not pr_number:
-        return
-    repo = g.get_repo(REPO_NAME)
-    pr = repo.get_pull(int(pr_number))
-    pr.create_issue_comment("## Doc-Sentinel Audit\n\n" + result)
-    print("Comment posted to PR.")
-
-
-try:
-    print("Connecting to repo: " + REPO_NAME)
-    current_docs = get_real_docs()
-    diff = get_real_diff()
-    print("Diff captured. Running audit...")
-    result = run_audit(mock_diff, doc_content)
-label_to_use = "Docs: Action Required" if result.strip().startswith("YES") else "Docs: Passed"
-
-with open(os.environ['GITHUB_OUTPUT'], 'a') as fh:
-    print(f"audit_label={label_to_use}", file=fh)
-
-post_pr_comment(result)
-
-except Exception as e:
-    print("Error: " + str(e))
-    raise
+def post_output_to_github(result, files):
+    """Sends variables back to the GitHub Actions YAML."""
+    label = "Docs: Action Required" if result
