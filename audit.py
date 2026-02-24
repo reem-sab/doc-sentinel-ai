@@ -69,4 +69,4 @@ def run_ai_audit(diff, docs):
 
 def post_output_to_github(result, files):
     """Sends variables back to the GitHub Actions YAML."""
-    label = "Docs: Action Required" if result
+    label = "Docs: Action Required" if result.strip().startswith("YES") else "Docs: Passed"
