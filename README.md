@@ -54,9 +54,4 @@ The Intelligence Layer evaluates content across three key metrics to ensure it i
 *Senior Technical Writer | Technical Educator | AI-Native Builder*
 [LinkedIn](https://www.linkedin.com/in/reem-s-78187b1b9/) | [Portfolio](https://reemsabawi-portfolio.notion.site/Reem-Sabawi-s-Professional-Portfolio-2fa1fb910d8180ce86b0ef3542ef9506)
 
----
-### `initialize_user_session`
-| Parameter | Type | Description |
-| :--- | :--- | :--- |
-| `user_id` | String | The unique identifier for the user. |
-| `session_timeout` | Integer | The time in milliseconds before session expires. |
+
