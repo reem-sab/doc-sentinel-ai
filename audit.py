@@ -20,7 +20,6 @@ def get_pr_diff():
     """Fetches the diff of the current Pull Request."""
     repo = g.get_repo(REPO_NAME)
     pr = repo.get_pull(int(PR_NUMBER))
-    # We get the 'diff' format specifically to show the changes
     comparison = repo.get_compare(pr.base.sha, pr.head.sha)
     files = comparison.files
     
@@ -28,37 +27,28 @@ def get_pr_diff():
     affected_filenames = []
     
     for file in files:
-        full_diff += f"File: {file.filename}\n{file.patch}\n\n"
-        affected_filenames.append(file.filename)
+        if file.patch: # Only include files with actual changes
+            full_diff += f"File: {file.filename}\n{file.patch}\n\n"
+            affected_filenames.append(file.filename)
         
     return full_diff, affected_filenames
 
 def get_existing_docs():
     """Fetches the main documentation file to compare against."""
     repo = g.get_repo(REPO_NAME)
-    # Update this path to your specific docs file (e.g., 'README.md' or 'docs/index.md')
+    # Confirmed: getting-started.md exists in the repo
     file_content = repo.get_contents("getting-started.md", ref="main")
     return file_content.decoded_content.decode()
 
 def run_ai_audit(diff, docs):
     """Sends the diff and docs to Gemini for analysis."""
     prompt = f"""
-    You are a Senior Technical Writer and Documentation Auditor.
+    You are a Senior Technical Writer. 
+    Review the code changes against the docs. 
+    Start with 'YES' if updates are needed, or 'NO' if it's fine.
     
-    TASK:
-    Review the following code changes (Diff) against the existing documentation.
-    Determine if the documentation is now outdated or missing new features.
-    
-    - If documentation needs updates: Start your response with 'YES'.
-    - If documentation is fine: Start your response with 'NO'.
-    
-    Provide a concise explanation and, if 'YES', provide the suggested Markdown fix.
-    
-    CODE CHANGE (DIFF):
-    {diff}
-    
-    EXISTING DOCUMENTATION:
-    {docs}
+    DIFF: {diff}
+    DOCS: {docs}
     """
     
     response = client.models.generate_content(
@@ -69,12 +59,37 @@ def run_ai_audit(diff, docs):
 
 def post_output_to_github(result, files):
     """Sends variables back to the GitHub Actions YAML."""
-    # Fixed the SyntaxError by adding the 'else' clause
+    # Syntax fixed: Added the mandatory 'else' clause
     label = "Docs: Action Required" if result.strip().startswith("YES") else "Docs: Passed"
     files_list = ", ".join(files) if files else "None"
     
-    # Ensure we write to the GitHub output file correctly
     if "GITHUB_OUTPUT" in os.environ:
         with open(os.environ["GITHUB_OUTPUT"], "a") as f:
             f.write(f"audit_label={label}\n")
             f.write(f"affected_files={files_list}\n")
+
+def post_pr_comment(result):
+    """Posts the AI audit as a comment on the PR."""
+    repo = g.get_repo(REPO_NAME)
+    pr = repo.get_pull(int(PR_NUMBER))
+    comment_body = f"## 🛡️ Doc-Sentinel AI Audit\n\n{result}"
+    pr.create_issue_comment(comment_body)
+
+if __name__ == "__main__":
+    if not PR_NUMBER:
+        print("No PR_NUMBER found. Skipping.")
+        sys.exit(0)
+
+    try:
+        diff_text, affected_files = get_pr_diff()
+        current_docs = get_existing_docs()
+        
+        audit_result = run_ai_audit(diff_text, current_docs)
+        
+        post_output_to_github(audit_result, affected_files)
+        post_pr_comment(audit_result)
+        
+        print("Audit complete!")
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
