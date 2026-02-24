@@ -52,7 +52,7 @@ def run_audit(diff, docs):
     for attempt in range(3):
         try:
             response = client.models.generate_content(
-                model="gemini-1.5-flash",
+                model="gemini-1.5-flash-latest",
                 contents=contents
             )
             return response.text
