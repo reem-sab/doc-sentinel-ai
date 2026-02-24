@@ -79,10 +79,13 @@ try:
     current_docs = get_real_docs()
     diff = get_real_diff()
     print("Diff captured. Running audit...")
-    result = run_audit(diff, current_docs)
-    print("\n--- AI AUDIT RESULT ---")
-    print(result)
-    post_pr_comment(result)
+    result = run_audit(mock_diff, doc_content)
+label_to_use = "Docs: Action Required" if result.strip().startswith("YES") else "Docs: Passed"
+
+with open(os.environ['GITHUB_OUTPUT'], 'a') as fh:
+    print(f"audit_label={label_to_use}", file=fh)
+
+post_pr_comment(result)
 
 except Exception as e:
     print("Error: " + str(e))
