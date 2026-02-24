@@ -1,22 +1,52 @@
 name: Doc-Sentinel AI Audit
-on: [push, pull_request]
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# Prevents multiple runs from clashing if you push quickly
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   audit-job:
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          # Add any libraries you use here (e.g., pip install requests)
+      - name: Install dependencies
+        run: pip install PyGithub google-genai python-dotenv --upgrade
 
-      - name: Run AI Readability Scorer
-        run: python src/audit.py  
+      - name: Run AI Audit
+        id: run_audit_step
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        # Note: We are pointing to your new 'src' folder here
+        run: python src/audit.py
+
+      - name: Generate Dashboard Summary
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "### 🛡️ Doc-Sentinel Audit Report" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Engine** | Doc-Sentinel Intelligence |" >> $GITHUB_STEP_SUMMARY
+          echo "Detailed suggestions have been posted in the logs." >> $GITHUB_STEP_SUMMARY
