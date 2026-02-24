@@ -69,4 +69,12 @@ def run_ai_audit(diff, docs):
 
 def post_output_to_github(result, files):
     """Sends variables back to the GitHub Actions YAML."""
+    # Fixed the SyntaxError by adding the 'else' clause
     label = "Docs: Action Required" if result.strip().startswith("YES") else "Docs: Passed"
+    files_list = ", ".join(files) if files else "None"
+    
+    # Ensure we write to the GitHub output file correctly
+    if "GITHUB_OUTPUT" in os.environ:
+        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+            f.write(f"audit_label={label}\n")
+            f.write(f"affected_files={files_list}\n")
