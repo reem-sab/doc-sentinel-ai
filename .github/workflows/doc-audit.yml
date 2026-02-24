@@ -39,7 +39,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-        # Note: We are pointing to your new 'src' folder here
+        
         run: python src/audit.py
 
       - name: Generate Dashboard Summary
