@@ -6,11 +6,15 @@ on:
   pull_request:
     branches: [ main ]
 
+# Cancels older runs if you push new code to the same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   audit:
     runs-on: ubuntu-latest
     
-    # Permissions for both commenting and labeling
     permissions:
       contents: read
       pull-requests: write
@@ -31,30 +35,38 @@ jobs:
         run: pip install PyGithub google-genai python-dotenv
 
       - name: Run AI Audit
-        id: run_audit
+        id: run_audit_step
         if: github.event_name == 'pull_request'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           REPO_NAME: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        # Note: If your audit.py fails, this step will fail. 
-        # You can add 'continue-on-error: true' if you want labels to apply anyway.
         run: python audit.py
 
-      - name: Label PR on Success
+      - name: Generate Dashboard Summary
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "### 🛡️ Doc-Sentinel Audit Report" >> $GITHUB_STEP_SUMMARY
+          echo "Result: **${{ steps.run_audit_step.outputs.audit_label || 'Completed' }}**" >> $GITHUB_STEP_SUMMARY
+          echo "Check the Pull Request comments for a detailed breakdown from Gemini." >> $GITHUB_STEP_SUMMARY
+
+      - name: Apply AI Labels
         if: success() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
+            const dynamicLabel = "${{ steps.run_audit_step.outputs.audit_label }}";
+            const finalLabel = dynamicLabel || 'Docs: Checked';
+            
             github.rest.issues.addLabels({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              labels: ['AI-Audited', 'Docs: Checked']
+              labels: [finalLabel, 'AI-Audited']
             })
 
-      - name: Label PR on Failure
+      - name: Label PR on System Failure
         if: failure() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
@@ -63,5 +75,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              labels: ['Docs: Action Required', 'Audit-Failed']
+              labels: ['Audit-Failed', 'Docs: Action Required']
             })
