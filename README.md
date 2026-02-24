@@ -2,7 +2,7 @@
 
 **Doc-Sentinel AI** is a CI/CD-integrated solution designed to eliminate **Documentation Debt**—the gap between rapid code deployment and accurate technical content—while optimizing for **AI Crawlability**. By leveraging **Google Gemini 2.0 Flash** and **GitHub Actions**, it provides a scalable "safety net" ensuring every code push is accurate for humans and high-performance for AI-driven RAG (Retrieval-Augmented Generation) systems.
 
-[Image of a software architecture diagram showing DocSentinel AI as a central hub with modules for Monitoring, Optimization, and AI-Readability Scoring]
+
 
 ---
 
@@ -43,4 +43,20 @@ The Intelligence Layer evaluates content across three key metrics to ensure it i
 
 ## 🧪 The Governance Workflow
 1.  **Event Trigger:** A developer pushes code or documentation updates.
-2.
+2.  **State Capture:** The agent fetches the latest `git diff` and Markdown content via the GitHub API.
+3.  **Cross-Functional Analysis:** Gemini evaluates "Technical Drift" (Debt) and content "Crawlability" (Intelligence).
+4.  **Strategic Remediation:** The agent generates a dashboard report with a percentage score and actionable suggestions directly in the GitHub Actions summary.
+
+---
+
+## 👤 Author
+**Reem Sabawi**
+*Senior Technical Writer | Technical Writing Educator | Aspiring Product Manager*
+[LinkedIn](https://www.linkedin.com/in/reem-s-78187b1b9/) | [Portfolio](https://reemsabawi-portfolio.notion.site/Reem-Sabawi-s-Professional-Portfolio-2fa1fb910d8180ce86b0ef3542ef9506)
+
+---
+### `initialize_user_session`
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `user_id` | String | The unique identifier for the user. |
+| `session_timeout` | Integer | The time in milliseconds before session expires. |
