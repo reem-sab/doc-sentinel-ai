@@ -18,6 +18,18 @@ In complex cloud ecosystems (like AWS Greengrass), a single casing error in a pa
 * **Agentic Perception:** Autonomously observes code diffs, reasons through technical impact, and generates precise remediation steps without human prompting.
 
 ---
+🤖 AI-Readability & Optimization (The "Intelligence" Layer)
+Modern documentation is read by AI just as much as by humans. Doc-Sentinel AI now scans your docs to ensure they are optimized for LLM Context Windows and RAG (Retrieval-Augmented Generation).
+
+Ambiguity Detection: Flags vague pronouns (e.g., "it," "this," "there") that cause "context drift" in AI embeddings.
+
+Semantic Hierarchy Audit: Ensures your Markdown structure allows for clean semantic chunking.
+
+Context Injection Suggestions: Recommends adding metadata or YAML frontmatter to help AI crawlers categorize your content.
+
+LLMS.txt Generation: Automatically suggests a high-level summary file for your project root to act as an AI entry point.
+
+---
 
 ## 🛠 Tech Stack
 * **LLM Orchestration:** Google Gemini 2.0 Flash (Optimized for 1M+ token context windows)
