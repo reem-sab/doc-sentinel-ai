@@ -48,8 +48,14 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           echo "### 🛡️ Doc-Sentinel Audit Report" >> $GITHUB_STEP_SUMMARY
-          echo "Result: **${{ steps.run_audit_step.outputs.audit_label || 'Completed' }}**" >> $GITHUB_STEP_SUMMARY
-          echo "Check the Pull Request comments for a detailed breakdown from Gemini." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Status** | ${{ steps.run_audit_step.outputs.audit_label || 'Passed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Affected Files** | ${{ steps.run_audit_step.outputs.affected_files || 'None' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Engine** | Gemini 1.5 Flash |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Detailed suggestions have been posted as comments on the [Pull Request](${{ github.event.pull_request.html_url }})." >> $GITHUB_STEP_SUMMARY
 
       - name: Apply AI Labels
         if: success() && github.event_name == 'pull_request'
