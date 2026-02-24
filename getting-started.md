@@ -6,5 +6,4 @@ To start an audit, use the following function:
 This function requires your API key to authenticate.
 
 ## New Section
-Hello!
-1234
+Hello! This is a test!
