@@ -2,8 +2,6 @@
 
 **Doc-Sentinel AI** is a CI/CD-integrated tool that automatically audits your documentation on every code change, catching drift between your code and your docs before anything ships.
 
-Built by a Senior Technical Writer who got tired of waiting for someone else to solve documentation debt.
-
 ---
 
 ## 🎯 The Problem
@@ -18,11 +16,33 @@ Doc-Sentinel is that safety net. It hooks into your GitHub Actions pipeline, com
 
 ## 🚀 Features
 
-- **Semantic Integrity Audits:** Uses LLM orchestration to understand the *intent* of code changes, catching logic shifts that regex-based linters miss.
-- **Severity Labels:** Flags discrepancies as Critical or Minor so teams can prioritize what to fix first.
+- **Drift Detection:** Compares every code change against your documentation using Gemini 2.0 Flash and flags anything that no longer matches — function signatures, parameters, renamed methods, removed steps.
+- **Intelligence Scoring:** Scores your documentation for AI-Readability using the [AI-Readability Style Guide](./AI_STYLE_GUIDE.md) — catching vague pronouns, broken heading hierarchy, dense paragraphs, and missing code block metadata that cause context loss in RAG pipelines.
+- **Actionable Remediation:** Posts severity labels, a one-sentence explanation of the drift, and a corrected Markdown snippet directly on the PR — ready to paste in.
 - **Zero-Friction CI/CD:** Runs natively in GitHub Actions. No new tools, no new workflows.
-- **PR Comments:** Posts audit results directly on the pull request with a corrected Markdown snippet ready to paste in.
-- **Agentic Perception:** Autonomously observes code diffs, reasons through technical impact, and generates precise remediation steps.
+- **Doc Detective Integration:** When Doc Detective test failures are detected, Doc Sentinel automatically wakes up, audits the affected file, and posts findings back on the issue. See [Phase 2.5](#️-roadmap).
+
+---
+
+## 🧠 The Two-Part Audit
+
+Every Doc-Sentinel run performs two distinct checks:
+
+**1. Drift Audit**
+Gemini compares the code diff against the existing documentation to detect Technical Drift — changes to function signatures, parameters, renamed methods, or removed steps that are not reflected in the docs. If drift is found, the result starts with `YES` and a label of `Docs: Action Required` is applied.
+
+**2. Intelligence Audit**
+The `DocSentinelIntelligence` engine scores the documentation for AI-Readability using the standards defined in the [AI-Readability Style Guide](./AI_STYLE_GUIDE.md). It checks for:
+
+| Rule | What It Catches |
+| :--- | :--- |
+| **Context Persistence** | Vague pronouns (It, This, They) at the start of paragraphs that cause AI chunking failures |
+| **Semantic Hierarchy** | Skipped heading levels that break AI crawlers' understanding of document structure |
+| **Paragraph Density** | Walls of text that cause information dilution in RAG embeddings |
+| **Code Block Metadata** | Unlabeled code blocks that prevent AI agents from identifying language and context |
+| **Visual-to-Text Bridging** | Images without alt-text that are invisible to text-only RAG pipelines |
+
+The result is a **0–100% AI-Readability Score** posted on every PR alongside the drift findings.
 
 ---
 
@@ -37,18 +57,19 @@ Doc-Sentinel is that safety net. It hooks into your GitHub Actions pipeline, com
 
 ## 🧪 How It Works
 
-1. **Event Trigger:** A developer opens a pull request or pushes a code change.
+1. **Event Trigger:** A developer opens a pull request, pushes a code change, or a Doc Detective test failure issue is labeled `doc-detective`.
 2. **State Capture:** The agent fetches the latest `git diff` and corresponding documentation via the GitHub API.
-3. **AI Analysis:** Gemini evaluates the code change against the Markdown to detect Technical Drift.
-4. **Remediation:** If drift is found, the agent posts a severity label, a one-sentence explanation, and a corrected Markdown snippet directly on the PR.
+3. **Drift Analysis:** Gemini evaluates the code change against the Markdown to detect Technical Drift.
+4. **Intelligence Scoring:** The `DocSentinelIntelligence` engine scores the documentation against the AI-Readability Style Guide.
+5. **Remediation:** Findings are posted directly on the PR or issue with a severity label, explanation, and corrected Markdown snippet.
 
 ---
 
 ## 🗺️ Roadmap
 
-- **Phase 1: Automated Detection & Reporting** ✅ Current MVP
-- **Phase 2: Multi-File Audits** — Support for recursive scanning across entire `/docs` directories.
-- **Phase 2.5: Doc Detective Integration** — When Doc Detective test failures are detected, Doc Sentinel automatically triggers a documentation audit. Built in collaboration with [@hawkeyexl](https://github.com/hawkeyexl).
+- **Phase 1: Automated Detection & Reporting** ✅ Complete
+- **Phase 2: Multi-File Audits** — Recursive scanning across entire `/docs` directories.
+- **Phase 2.5: Doc Detective Integration** ✅ Complete — When Doc Detective test failures are detected, Doc Sentinel automatically triggers a documentation audit. Built in collaboration with [@hawkeyexl](https://github.com/hawkeyexl).
 - **Phase 3: Autonomous Remediation** — Agent opens a PR with corrected documentation for human review, validated by Doc Detective before merging.
 - **Phase 4: Stakeholder Dashboard** — Strategic oversight for Product Managers and Documentation Leads.
 
@@ -73,9 +94,15 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  issues:
+    types: [ opened, labeled ]
 jobs:
   audit:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -90,7 +117,8 @@ jobs:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           REPO_NAME: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: python audit.py
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: python src/audit.py
 ```
 
 ### 3. That's it
