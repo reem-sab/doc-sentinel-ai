@@ -24,8 +24,55 @@ class DocSentinelIntelligence:
         return max(score, 0)
 
 
+def find_matching_docs(repo, changed_files):
+    """
+    Multi-file support: For each changed code file, find matching .md files
+    by comparing base names. Falls back to getting-started.md if no match found.
+    """
+    # Get all .md files in the repo
+    all_md_files = []
+    try:
+        contents = repo.get_contents("", ref="main")
+        stack = list(contents)
+        while stack:
+            item = stack.pop()
+            if item.type == "dir":
+                stack.extend(repo.get_contents(item.path, ref="main"))
+            elif item.path.endswith(".md"):
+                all_md_files.append(item.path)
+    except Exception as e:
+        print("Could not scan repo for .md files: " + str(e))
+        return ["getting-started.md"]
+
+    matched_docs = set()
+
+    for changed_file in changed_files:
+        # Extract base name without extension and path
+        base_name = os.path.basename(changed_file)
+        base_name = os.path.splitext(base_name)[0].lower()
+        # Normalize separators
+        base_name = base_name.replace("_", "-")
+
+        found = False
+        for md_file in all_md_files:
+            md_base = os.path.basename(md_file)
+            md_base = os.path.splitext(md_base)[0].lower()
+            md_base = md_base.replace("_", "-")
+
+            # Match if names are the same or one contains the other
+            if base_name in md_base or md_base in base_name:
+                matched_docs.add(md_file)
+                found = True
+
+        if not found:
+            # Fall back to getting-started.md
+            matched_docs.add("getting-started.md")
+
+    return list(matched_docs) if matched_docs else ["getting-started.md"]
+
+
 def get_pr_data(repo, pr_number):
-    """Gets diff and doc content for a pull request trigger."""
+    """Gets diff and changed files for a pull request trigger."""
     pr = repo.get_pull(int(pr_number))
 
     comparison = repo.compare(pr.base.sha, pr.head.sha)
@@ -36,10 +83,16 @@ def get_pr_data(repo, pr_number):
             diff_text += "File: " + file.filename + "\n" + file.patch + "\n\n"
             affected_files.append(file.filename)
 
-    doc_file = repo.get_contents("getting-started.md", ref="main")
-    doc_content = doc_file.decoded_content.decode()
+    return diff_text, affected_files, pr
 
-    return diff_text, doc_content, affected_files, pr
+
+def get_doc_content(repo, doc_path):
+    """Fetches the content of a doc file from the repo."""
+    try:
+        doc_file = repo.get_contents(doc_path, ref="main")
+        return doc_file.decoded_content.decode()
+    except Exception:
+        return None
 
 
 def parse_doc_detective_issue(issue_body, repo_name):
@@ -103,8 +156,8 @@ def get_issue_data(repo, issue_number):
     return doc_content, doc_path, failure_summary, issue
 
 
-def run_pr_audit(diff, docs, score):
-    """Runs a drift + style audit for a pull request trigger."""
+def run_single_doc_audit(diff, doc_content, doc_path, score):
+    """Runs a drift + style audit for a single doc file."""
     client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
     prompt = (
@@ -118,7 +171,7 @@ def run_pr_audit(diff, docs, score):
         "No preamble. No summary. No encouragement. Just the fixes.\n\n"
         "The document currently has an AI-Readability score of " + str(score) + "%.\n\n"
         "CODE DIFF:\n" + diff + "\n\n"
-        "EXISTING DOCS:\n" + docs
+        "EXISTING DOCS (" + doc_path + "):\n" + doc_content
     )
 
     for attempt in range(3):
@@ -182,26 +235,51 @@ if __name__ == "__main__":
 
     # --- PULL REQUEST TRIGGER ---
     if pr_number:
-        print("PR trigger detected. Running drift audit...")
+        print("PR trigger detected. Running multi-file drift audit...")
         try:
-            diff, docs, files, pr = get_pr_data(repo, pr_number)
+            diff, affected_files, pr = get_pr_data(repo, pr_number)
 
-            intel = DocSentinelIntelligence(docs)
-            readability_score = intel.calculate_score()
+            # Find matching doc files for all changed files
+            doc_files = find_matching_docs(repo, affected_files)
+            print("Doc files to audit: " + str(doc_files))
 
-            audit_result = run_pr_audit(diff, docs, readability_score)
+            # Build one combined comment
+            combined_comment = "## 🛡️ Doc-Sentinel Audit Result\n"
+            combined_comment += "**Files audited:** " + ", ".join(["`" + f + "`" for f in doc_files]) + "\n\n"
+            combined_comment += "---\n\n"
 
-            label = "Docs: Action Required" if audit_result.strip().startswith("YES") or "**YES**" in audit_result else "Docs: Passed"
+            any_drift = False
+
+            for doc_path in doc_files:
+                doc_content = get_doc_content(repo, doc_path)
+                if not doc_content:
+                    combined_comment += "### `" + doc_path + "`\n"
+                    combined_comment += "⚠️ Could not retrieve this file.\n\n---\n\n"
+                    continue
+
+                intel = DocSentinelIntelligence(doc_content)
+                readability_score = intel.calculate_score()
+
+                audit_result = run_single_doc_audit(diff, doc_content, doc_path, readability_score)
+
+                if "**YES**" in audit_result or audit_result.strip().startswith("YES"):
+                    any_drift = True
+
+                combined_comment += "### `" + doc_path + "`\n"
+                combined_comment += "**AI-Readability Score:** " + str(readability_score) + "%\n\n"
+                combined_comment += audit_result + "\n\n---\n\n"
+
+            # Post the single combined comment
+            pr.create_issue_comment(combined_comment)
+
+            # Write outputs
+            label = "Docs: Action Required" if any_drift else "Docs: Passed"
             if "GITHUB_OUTPUT" in os.environ:
                 with open(os.environ["GITHUB_OUTPUT"], "a") as f:
                     f.write("audit_label=" + label + "\n")
-                    f.write("affected_files=" + ", ".join(files) + "\n")
-                    f.write("readability_score=" + str(readability_score) + "%\n")
+                    f.write("affected_files=" + ", ".join(affected_files) + "\n")
 
-            comment_header = "## 🛡️ Doc-Sentinel Audit Result\n**AI-Readability Score: " + str(readability_score) + "%**\n\n"
-            pr.create_issue_comment(comment_header + audit_result)
-
-            print("PR audit complete.")
+            print("PR audit complete. Files audited: " + str(len(doc_files)))
 
         except Exception as e:
             print("CRITICAL ERROR (PR): " + str(e))
