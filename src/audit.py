@@ -46,20 +46,16 @@ def parse_doc_detective_issue(issue_body, repo_name):
     """
     Parses a Doc Detective failure issue body.
     Extracts the JSON report and converts runner paths to repo-relative paths.
-    GitHub Actions always uses /home/runner/work/<repo_name>/<repo_name>/ as the base.
     """
-    # Extract JSON from the code block in the issue body
     match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', issue_body, re.DOTALL)
     if not match:
         raise ValueError("Could not find JSON report in issue body.")
 
     report = json.loads(match.group(1))
 
-    # Get the repo name without the owner prefix (e.g. "doc-sentinel-ai" from "reem-sab/doc-sentinel-ai")
     short_repo_name = repo_name.split("/")[-1]
     runner_prefix = "/home/runner/work/" + short_repo_name + "/" + short_repo_name + "/"
 
-    # Extract failed files and steps
     failed_files = []
     failed_steps = []
 
@@ -92,7 +88,6 @@ def get_issue_data(repo, issue_number):
     if not failed_files:
         raise ValueError("No failed files found in Doc Detective report.")
 
-    # Use the first failed file as the doc to audit
     doc_path = failed_files[0]
 
     try:
@@ -101,7 +96,6 @@ def get_issue_data(repo, issue_number):
     except Exception:
         doc_content = "Could not retrieve file: " + doc_path
 
-    # Build a summary of what failed to give Gemini context
     failure_summary = "Doc Detective detected the following failures:\n"
     for step in failed_steps:
         failure_summary += "- " + step["description"] + " (action: " + step["action"] + ")\n"
@@ -114,11 +108,15 @@ def run_pr_audit(diff, docs, score):
     client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
     prompt = (
-        "Act as a Senior Technical Writer. Perform a two-part audit:\n\n"
-        "1. DRIFT AUDIT: Compare the CODE DIFF below to the EXISTING DOCS.\n"
-        "   If the code changes are not reflected in the docs, start with YES. Otherwise, start with NO.\n\n"
-        "2. STYLE AUDIT: The document currently has an AI-Readability score of " + str(score) + "%.\n"
-        "   Suggest improvements to make it more Agent-Friendly.\n\n"
+        "You are a Senior Technical Writer reviewing a pull request. "
+        "Perform a two-part audit and respond in this exact format:\n\n"
+        "**DRIFT AUDIT**\n"
+        "Start with YES or NO in bold. One sentence explaining what drifted and why it matters. "
+        "If YES, provide a corrected Markdown snippet under a heading called Suggested Fix.\n\n"
+        "**STYLE AUDIT**\n"
+        "Two to three bullet points maximum. Each bullet is one specific, actionable suggestion. "
+        "No preamble. No summary. No encouragement. Just the fixes.\n\n"
+        "The document currently has an AI-Readability score of " + str(score) + "%.\n\n"
         "CODE DIFF:\n" + diff + "\n\n"
         "EXISTING DOCS:\n" + docs
     )
@@ -143,14 +141,17 @@ def run_issue_audit(doc_content, failure_summary, score):
     client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
     prompt = (
-        "Act as a Senior Technical Writer. Doc Detective ran automated tests on a documentation file and found failures.\n\n"
+        "You are a Senior Technical Writer. Doc Detective ran automated tests on a documentation file and found failures.\n\n"
         "FAILURE SUMMARY:\n" + failure_summary + "\n\n"
-        "Your job is to:\n"
-        "1. FAILURE AUDIT: Review the documentation below in the context of the failures above. "
-        "Identify what in the documentation is inaccurate, outdated, or missing that likely caused these failures.\n"
-        "2. REMEDIATION: Provide specific corrected Markdown snippets to fix the issues.\n"
-        "3. STYLE AUDIT: The document has an AI-Readability score of " + str(score) + "%. "
-        "Note any quick style improvements.\n\n"
+        "Respond in this exact format:\n\n"
+        "**FAILURE AUDIT**\n"
+        "One sentence identifying what in the documentation is inaccurate or missing that caused these failures.\n\n"
+        "**SUGGESTED FIX**\n"
+        "The corrected Markdown snippet only. No explanation before or after it.\n\n"
+        "**STYLE AUDIT**\n"
+        "Two to three bullet points maximum. Each bullet is one specific, actionable suggestion. "
+        "No preamble. No summary. No encouragement. Just the fixes.\n\n"
+        "The document currently has an AI-Readability score of " + str(score) + "%.\n\n"
         "EXISTING DOCS:\n" + doc_content
     )
 
@@ -190,14 +191,14 @@ if __name__ == "__main__":
 
             audit_result = run_pr_audit(diff, docs, readability_score)
 
-            label = "Docs: Action Required" if audit_result.strip().startswith("YES") else "Docs: Passed"
+            label = "Docs: Action Required" if audit_result.strip().startswith("YES") or "**YES**" in audit_result else "Docs: Passed"
             if "GITHUB_OUTPUT" in os.environ:
                 with open(os.environ["GITHUB_OUTPUT"], "a") as f:
                     f.write("audit_label=" + label + "\n")
                     f.write("affected_files=" + ", ".join(files) + "\n")
                     f.write("readability_score=" + str(readability_score) + "%\n")
 
-            comment_header = "## Doc-Sentinel Audit Result\n**AI-Readability Score: " + str(readability_score) + "%**\n\n"
+            comment_header = "## 🛡️ Doc-Sentinel Audit Result\n**AI-Readability Score: " + str(readability_score) + "%**\n\n"
             pr.create_issue_comment(comment_header + audit_result)
 
             print("PR audit complete.")
@@ -218,7 +219,7 @@ if __name__ == "__main__":
             audit_result = run_issue_audit(doc_content, failure_summary, readability_score)
 
             comment = (
-                "## Doc-Sentinel Audit Result\n"
+                "## 🛡️ Doc-Sentinel Audit Result\n"
                 "**Triggered by:** Doc Detective test failure\n"
                 "**File audited:** `" + doc_path + "`\n"
                 "**AI-Readability Score:** " + str(readability_score) + "%\n\n"
