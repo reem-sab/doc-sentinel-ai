@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Doc-Sentinel AI — Documentation Drift Detection</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black: #0a0a0a;
+      --white: #fafaf8;
+      --cream: #f4f2ed;
+      --accent: #c8523a;
+      --accent-light: #f0e8e5;
+      --gray: #6b6b6b;
+      --gray-light: #e8e6e1;
+      --mono: 'DM Mono', monospace;
+      --serif: 'DM Serif Display', serif;
+      --sans: 'DM Sans', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--white);
+      color: var(--black);
+      font-family: var(--sans);
+      font-weight: 300;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* NAV */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.25rem 3rem;
+      background: rgba(250, 250, 248, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--gray-light);
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      text-decoration: none;
+      color: var(--black);
+    }
+
+    .nav-logo-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--black);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-size: 0.85rem;
+      color: var(--gray);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--black); }
+
+    .nav-cta {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 500;
+      background: var(--black);
+      color: var(--white) !important;
+      padding: 0.5rem 1.1rem;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.15s;
+    }
+
+    .nav-cta:hover {
+      background: var(--accent) !important;
+      transform: translateY(-1px);
+      color: var(--white) !important;
+    }
+
+    /* HERO */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 8rem 2rem 5rem;
+      position: relative;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(200, 82, 58, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--accent);
+      background: var(--accent-light);
+      border: 1px solid rgba(200, 82, 58, 0.2);
+      padding: 0.3rem 0.8rem;
+      border-radius: 100px;
+      margin-bottom: 2rem;
+      opacity: 0;
+      animation: fadeUp 0.6s ease 0.1s forwards;
+    }
+
+    .hero-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .hero h1 {
+      font-family: var(--serif);
+      font-size: clamp(3rem, 7vw, 5.5rem);
+      line-height: 1.08;
+      letter-spacing: -0.02em;
+      max-width: 820px;
+      margin-bottom: 1.5rem;
+      opacity: 0;
+      animation: fadeUp 0.7s ease 0.2s forwards;
+    }
+
+    .hero h1 em {
+      font-style: italic;
+      color: var(--accent);
+    }
+
+    .hero-sub {
+      font-size: 1.1rem;
+      color: var(--gray);
+      max-width: 520px;
+      line-height: 1.7;
+      margin-bottom: 2.5rem;
+      font-weight: 300;
+      opacity: 0;
+      animation: fadeUp 0.7s ease 0.35s forwards;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      opacity: 0;
+      animation: fadeUp 0.7s ease 0.5s forwards;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      font-weight: 500;
+      background: var(--black);
+      color: var(--white);
+      padding: 0.8rem 1.6rem;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(200, 82, 58, 0.25);
+    }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+      color: var(--gray);
+      text-decoration: none;
+      transition: color 0.2s;
+      padding: 0.8rem 0.5rem;
+    }
+
+    .btn-secondary:hover { color: var(--black); }
+
+    .star-count {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      background: var(--cream);
+      border: 1px solid var(--gray-light);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      color: var(--gray);
+    }
+
+    /* DEMO SCREENSHOT */
+    .demo {
+      padding: 0 2rem 6rem;
+      display: flex;
+      justify-content: center;
+      opacity: 0;
+      animation: fadeUp 0.8s ease 0.7s forwards;
+    }
+
+    .demo-frame {
+      max-width: 860px;
+      width: 100%;
+      background: var(--white);
+      border: 1px solid var(--gray-light);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 20px 80px rgba(0,0,0,0.08), 0 4px 20px rgba(0,0,0,0.04);
+    }
+
+    .demo-topbar {
+      background: var(--cream);
+      border-bottom: 1px solid var(--gray-light);
+      padding: 0.75rem 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .demo-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .demo-dot-red { background: #ff5f57; }
+    .demo-dot-yellow { background: #febc2e; }
+    .demo-dot-green { background: #28c840; }
+
+    .demo-url {
+      margin-left: 0.75rem;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--gray);
+      background: var(--white);
+      border: 1px solid var(--gray-light);
+      padding: 0.2rem 0.8rem;
+      border-radius: 4px;
+    }
+
+    .demo-content {
+      padding: 2rem 2.5rem;
+    }
+
+    .demo-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .demo-header h3 {
+      font-family: var(--sans);
+      font-weight: 500;
+      font-size: 1.05rem;
+    }
+
+    .demo-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .demo-meta-row {
+      font-size: 0.82rem;
+    }
+
+    .demo-meta-row strong {
+      font-weight: 500;
+    }
+
+    .demo-meta-row code {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      background: var(--cream);
+      border: 1px solid var(--gray-light);
+      padding: 0.1rem 0.4rem;
+      border-radius: 3px;
+    }
+
+    .demo-badge-yes {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 500;
+      background: #fef3f0;
+      color: var(--accent);
+      border: 1px solid rgba(200, 82, 58, 0.25);
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+    }
+
+    .demo-section-title {
+      font-weight: 500;
+      font-size: 0.95rem;
+      margin: 1rem 0 0.5rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--gray-light);
+    }
+
+    .demo-text {
+      font-size: 0.85rem;
+      color: #333;
+      line-height: 1.65;
+    }
+
+    .demo-fix {
+      margin-top: 1rem;
+      background: var(--cream);
+      border: 1px solid var(--gray-light);
+      border-left: 3px solid var(--accent);
+      border-radius: 6px;
+      padding: 0.9rem 1.1rem;
+    }
+
+    .demo-fix-label {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      color: var(--accent);
+      font-weight: 500;
+      margin-bottom: 0.4rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .demo-fix code {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--black);
+    }
+
+    /* STATS */
+    .stats {
+      background: var(--cream);
+      border-top: 1px solid var(--gray-light);
+      border-bottom: 1px solid var(--gray-light);
+      padding: 3.5rem 2rem;
+    }
+
+    .stats-inner {
+      max-width: 860px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2rem;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-family: var(--serif);
+      font-size: 3rem;
+      line-height: 1;
+      margin-bottom: 0.4rem;
+      color: var(--black);
+    }
+
+    .stat-number em {
+      font-style: italic;
+      color: var(--accent);
+    }
+
+    .stat-label {
+      font-size: 0.82rem;
+      color: var(--gray);
+      line-height: 1.5;
+    }
+
+    /* FEATURES */
+    .features {
+      padding: 6rem 2rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 1rem;
+    }
+
+    .section-title {
+      font-family: var(--serif);
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 1.15;
+      margin-bottom: 1rem;
+      letter-spacing: -0.01em;
+    }
+
+    .section-sub {
+      font-size: 1rem;
+      color: var(--gray);
+      max-width: 480px;
+      line-height: 1.7;
+      margin-bottom: 3.5rem;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5px;
+      background: var(--gray-light);
+      border: 1px solid var(--gray-light);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .feature-card {
+      background: var(--white);
+      padding: 2rem;
+      transition: background 0.2s;
+    }
+
+    .feature-card:hover { background: var(--cream); }
+
+    .feature-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--cream);
+      border: 1px solid var(--gray-light);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .feature-title {
+      font-weight: 500;
+      font-size: 0.95rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .feature-desc {
+      font-size: 0.83rem;
+      color: var(--gray);
+      line-height: 1.6;
+    }
+
+    /* HOW IT WORKS */
+    .how {
+      background: var(--cream);
+      border-top: 1px solid var(--gray-light);
+      border-bottom: 1px solid var(--gray-light);
+      padding: 6rem 2rem;
+    }
+
+    .how-inner {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin-top: 3rem;
+      position: relative;
+    }
+
+    .steps::before {
+      content: '';
+      position: absolute;
+      left: 17px;
+      top: 36px;
+      bottom: 36px;
+      width: 1px;
+      background: var(--gray-light);
+    }
+
+    .step {
+      display: flex;
+      gap: 1.5rem;
+      align-items: flex-start;
+      padding: 1.5rem 0;
+    }
+
+    .step-num {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      background: var(--white);
+      border: 1px solid var(--gray-light);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--gray);
+      position: relative;
+      z-index: 1;
+    }
+
+    .step-body h4 {
+      font-weight: 500;
+      font-size: 0.95rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .step-body p {
+      font-size: 0.83rem;
+      color: var(--gray);
+      line-height: 1.6;
+    }
+
+    /* INTEGRATION */
+    .integration {
+      padding: 6rem 2rem;
+      max-width: 860px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .integration-logos {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin: 3rem 0;
+      flex-wrap: wrap;
+    }
+
+    .integration-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 500;
+      background: var(--white);
+      border: 1px solid var(--gray-light);
+      padding: 0.5rem 1rem;
+      border-radius: 100px;
+      color: var(--black);
+    }
+
+    .integration-arrow {
+      color: var(--gray-light);
+      font-size: 1.2rem;
+    }
+
+    /* CTA */
+    .cta {
+      background: var(--black);
+      color: var(--white);
+      padding: 6rem 2rem;
+      text-align: center;
+    }
+
+    .cta h2 {
+      font-family: var(--serif);
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      line-height: 1.15;
+      margin-bottom: 1rem;
+      letter-spacing: -0.01em;
+    }
+
+    .cta h2 em {
+      font-style: italic;
+      color: #e8836e;
+    }
+
+    .cta p {
+      font-size: 1rem;
+      color: rgba(255,255,255,0.55);
+      max-width: 440px;
+      margin: 0 auto 2.5rem;
+      line-height: 1.7;
+    }
+
+    .btn-white {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      font-weight: 500;
+      background: var(--white);
+      color: var(--black);
+      padding: 0.85rem 1.8rem;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.15s;
+    }
+
+    .btn-white:hover {
+      background: #e8836e;
+      color: var(--white);
+      transform: translateY(-2px);
+    }
+
+    /* FOOTER */
+    footer {
+      background: var(--black);
+      border-top: 1px solid rgba(255,255,255,0.07);
+      padding: 2rem 3rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .footer-left {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.3);
+    }
+
+    .footer-right {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .footer-right a {
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.3);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer-right a:hover { color: rgba(255,255,255,0.7); }
+
+    /* ANIMATIONS */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 680px) {
+      nav { padding: 1rem 1.5rem; }
+      .nav-links { display: none; }
+      .features-grid { grid-template-columns: 1fr; }
+      .stats-inner { grid-template-columns: 1fr; gap: 2.5rem; }
+      .demo-content { padding: 1.2rem; }
+      footer { flex-direction: column; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <a href="#" class="nav-logo">
+      <div class="nav-logo-icon">🛡️</div>
+      doc-sentinel
+    </a>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#how">How it works</a></li>
+      <li><a href="https://github.com/reem-sab/doc-sentinel-ai" target="_blank">Docs</a></li>
+      <li><a href="https://github.com/reem-sab/doc-sentinel-ai" target="_blank" class="nav-cta">★ Star on GitHub</a></li>
+    </ul>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge">Open Source · Built on GitHub Actions · Powered by Gemini</div>
+    <h1>Wrong docs are more <em>dangerous</em> than no docs</h1>
+    <p class="hero-sub">Doc-Sentinel AI hooks into your CI/CD pipeline and flags drift between your code and your documentation on every pull request — before anything ships.</p>
+    <div class="hero-actions">
+      <a href="https://github.com/reem-sab/doc-sentinel-ai" target="_blank" class="btn-primary">
+        ★ Star on GitHub
+      </a>
+      <a href="#how" class="btn-secondary">See how it works →</a>
+    </div>
+  </section>
+
+  <!-- DEMO -->
+  <div class="demo">
+    <div class="demo-frame">
+      <div class="demo-topbar">
+        <div class="demo-dot demo-dot-red"></div>
+        <div class="demo-dot demo-dot-yellow"></div>
+        <div class="demo-dot demo-dot-green"></div>
+        <div class="demo-url">github.com / your-repo / pull / 12 — Doc-Sentinel AI Audit</div>
+      </div>
+      <div class="demo-content">
+        <div class="demo-header">
+          <span>🛡️</span>
+          <h3>Doc-Sentinel Audit Result</h3>
+        </div>
+        <div class="demo-meta">
+          <div class="demo-meta-row"><strong>AI-Readability Score:</strong> 70%</div>
+          <div class="demo-meta-row"><strong>Drift Detected:</strong> <span class="demo-badge-yes">YES — Action Required</span></div>
+          <div class="demo-meta-row"><strong>File audited:</strong> <code>getting-started.md</code></div>
+        </div>
+        <div class="demo-section-title">1. Drift Audit</div>
+        <p class="demo-text">The code diff introduces changes to the <code>start_ai_audit</code> function signature — adding optional <code>mode</code> and <code>version</code> parameters — that are <strong>not reflected</strong> in the existing documentation.</p>
+        <div class="demo-fix">
+          <div class="demo-fix-label">Suggested Fix</div>
+          <code>start_ai_audit(api_key, mode='strict', version=2)</code>
+        </div>
+        <div class="demo-section-title" style="margin-top:1.2rem">2. Style Audit</div>
+        <p class="demo-text">The documentation score of 70% indicates room for improvement in agent-friendliness. Recommend defining parameters with explicit type annotations and adding an examples section for AI retrieval accuracy.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <section class="stats">
+    <div class="stats-inner">
+      <div>
+        <div class="stat-number"><em>40%</em></div>
+        <div class="stat-label">of your entire tech estate is debt — and a lot of it is documentation that stopped being true months ago</div>
+      </div>
+      <div>
+        <div class="stat-number">30<em>min</em></div>
+        <div class="stat-label">engineers spend figuring out something that should take one minute when docs are wrong or missing</div>
+      </div>
+      <div>
+        <div class="stat-number"><em>0</em></div>
+        <div class="stat-label">teams with a dedicated safety net for documentation drift — until now</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features" id="features">
+    <div class="section-label">Features</div>
+    <h2 class="section-title">Everything your docs need.<br>Nothing your team has to do.</h2>
+    <p class="section-sub">Doc-Sentinel runs silently in the background on every pull request, so documentation debt never compounds unnoticed.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🔍</div>
+        <div class="feature-title">Drift Detection</div>
+        <div class="feature-desc">Compares every code change against your documentation using Gemini 2.0 Flash. Catches logic shifts that regex-based linters miss entirely.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <div class="feature-title">AI-Readability Scoring</div>
+        <div class="feature-desc">Scores your docs for agent-friendliness — catching vague pronouns, broken heading hierarchy, and missing code block metadata that break RAG pipelines.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💬</div>
+        <div class="feature-title">PR Comments</div>
+        <div class="feature-desc">Posts findings directly on the pull request with a severity label, one-sentence explanation, and a corrected Markdown snippet ready to paste in.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <div class="feature-title">Zero-Friction Setup</div>
+        <div class="feature-desc">Runs natively in GitHub Actions. Add one workflow file and two secrets. No new tools, no new dashboards, no new workflows.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔗</div>
+        <div class="feature-title">Doc Detective Integration</div>
+        <div class="feature-desc">When Doc Detective test failures are detected, Doc-Sentinel automatically wakes up, audits the affected file, and posts findings on the issue.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <div class="feature-title">Style Guide Enforcement</div>
+        <div class="feature-desc">Audits against a custom AI-Readability Style Guide covering context persistence, semantic hierarchy, paragraph density, and visual-to-text bridging.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="how" id="how">
+    <div class="how-inner">
+      <div class="section-label">How it works</div>
+      <h2 class="section-title">From code change to<br>audit result in seconds.</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">01</div>
+          <div class="step-body">
+            <h4>A pull request is opened</h4>
+            <p>A developer pushes code or opens a PR. Doc-Sentinel wakes up automatically via GitHub Actions — no manual trigger needed.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">02</div>
+          <div class="step-body">
+            <h4>The agent captures the diff</h4>
+            <p>Doc-Sentinel fetches the latest git diff and the corresponding documentation from your repository via the GitHub API.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">03</div>
+          <div class="step-body">
+            <h4>Gemini runs the two-part audit</h4>
+            <p>The Drift Audit checks whether code changes are reflected in the docs. The Intelligence Audit scores the documentation for AI-readability against the Style Guide.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">04</div>
+          <div class="step-body">
+            <h4>Findings are posted on the PR</h4>
+            <p>A bot comment appears on the pull request with a severity label, a plain-English explanation of what drifted, and a corrected Markdown snippet ready to paste in.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTEGRATION -->
+  <section class="integration">
+    <div class="section-label">Ecosystem</div>
+    <h2 class="section-title">Part of a complete<br>documentation quality loop.</h2>
+    <p class="section-sub" style="margin: 1rem auto 0; text-align:center">Doc-Sentinel pairs with Doc Detective to give you both drift detection and functional validation — the full picture.</p>
+    <div class="integration-logos">
+      <div class="integration-pill">🕵️ Doc Detective</div>
+      <div class="integration-arrow">→</div>
+      <div class="integration-pill">⚠️ Test failure</div>
+      <div class="integration-arrow">→</div>
+      <div class="integration-pill">🛡️ Doc-Sentinel audit</div>
+      <div class="integration-arrow">→</div>
+      <div class="integration-pill">✅ Issue resolved</div>
+    </div>
+    <p style="font-size:0.82rem; color:var(--gray);">Built in collaboration with <a href="https://github.com/hawkeyexl" style="color:var(--black);">@hawkeyexl</a> from Doc Detective.</p>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta">
+    <h2>The debt doesn't have<br>to keep <em>compounding.</em></h2>
+    <p>Add Doc-Sentinel to your GitHub Actions pipeline in under five minutes. Free and open source, forever.</p>
+    <a href="https://github.com/reem-sab/doc-sentinel-ai" target="_blank" class="btn-white">★ Star on GitHub</a>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-left">doc-sentinel-ai · Built by Reem Sabawi</div>
+    <div class="footer-right">
+      <a href="https://github.com/reem-sab/doc-sentinel-ai" target="_blank">GitHub</a>
+      <a href="https://www.linkedin.com/in/reem-s-78187b1b9/" target="_blank">LinkedIn</a>
+      <a href="https://github.com/reem-sab/doc-sentinel-ai/blob/main/AI_STYLE_GUIDE.md" target="_blank">Style Guide</a>
+    </div>
+  </footer>
+
+</body>
+</html>
