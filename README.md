@@ -4,7 +4,7 @@
 
 Built by a Senior Technical Writer who got tired of waiting for someone else to solve documentation debt.
 
-🌐 **[doc-sentinel-ai.github.io](https://reem-sab.github.io/doc-sentinel-ai/)** — Live demo and landing page
+🌐 **[reem-sab.github.io/doc-sentinel-ai](https://reem-sab.github.io/doc-sentinel-ai/)** — Live demo and landing page
 
 ---
 
@@ -21,6 +21,7 @@ Doc-Sentinel is that safety net. It hooks into your GitHub Actions pipeline, com
 ## 🚀 Features
 
 - **Multi-File Drift Detection:** Automatically identifies which documentation files are affected by each code change and audits all of them in a single PR comment.
+- **Historical Audit CLI:** Scan your entire repository for existing documentation drift in one command. Get a full health report across every `.md` file — not just what changes going forward.
 - **Semantic Integrity Audits:** Uses Gemini 2.0 Flash to understand the *intent* of code changes, catching logic shifts that regex-based linters miss.
 - **Intelligence Scoring:** Scores your documentation for AI-Readability using the [AI-Readability Style Guide](./AI_STYLE_GUIDE.md) — catching vague pronouns, broken heading hierarchy, dense paragraphs, and missing code block metadata.
 - **Actionable Remediation:** Posts severity labels, a one-sentence explanation, and a corrected Markdown snippet directly on the PR — ready to paste in.
@@ -61,6 +62,62 @@ If no matching doc file is found, Doc-Sentinel falls back to `getting-started.md
 
 ---
 
+## 🕵️ Historical Audit CLI
+
+The PR bot catches drift going forward. The Historical Audit tells you how bad the damage already is.
+
+Run it once to get a full picture of your existing documentation health — every `.md` file in your repo, scored and audited against its corresponding code.
+
+### Installation
+
+```bash
+pip install PyGithub google-genai python-dotenv
+```
+
+### Usage
+
+```bash
+# Audit only files with matching code files
+python historical_audit.py --repo OWNER/REPO
+
+# Audit every .md file in the repo
+python historical_audit.py --repo OWNER/REPO --all
+
+# Save report to a custom path
+python historical_audit.py --repo OWNER/REPO --all --output my-report.md
+```
+
+### What you get
+
+A full Markdown report with:
+- **Summary table** — total files audited, accurate, outdated, partial
+- **Files requiring attention** — each outdated file with its audit findings and suggested fixes
+- **Files in good shape** — listed with their AI-Readability scores
+- **Average AI-Readability Score** across the entire repo
+
+### Example output
+
+```
+🛡️  Doc-Sentinel Historical Audit
+Repository: your-org/your-repo
+Mode: All .md files
+
+Scanning repository...
+Found 12 Markdown files and 8 code files.
+Auditing: getting-started.md
+  Status: ACCURATE | Score: 70%
+Auditing: api-reference.md
+  Status: OUTDATED | Score: 100%
+Auditing: authentication.md
+  Status: ACCURATE | Score: 90%
+
+Files audited: 12
+Requiring attention: 3
+Healthy: 9
+```
+
+---
+
 ## 🛠 Tech Stack
 
 - **LLM Orchestration:** Google Gemini 2.0 Flash
@@ -85,6 +142,7 @@ If no matching doc file is found, Doc-Sentinel falls back to `getting-started.md
 - **Phase 1: Automated Detection & Reporting** ✅ Complete
 - **Phase 2: Multi-File Audits** ✅ Complete — Recursive scanning across all `.md` files with automatic code-to-doc mapping.
 - **Phase 2.5: Doc Detective Integration** ✅ Complete — When Doc Detective test failures are detected, Doc Sentinel automatically triggers a documentation audit. Built in collaboration with [@hawkeyexl](https://github.com/hawkeyexl).
+- **Phase 2.75: Historical Audit CLI** ✅ Complete — Scan your entire repo for existing documentation drift in one command.
 - **Phase 3: Autonomous Remediation** — Agent opens a PR with corrected documentation for human review, validated by Doc Detective before merging.
 - **Phase 4: Stakeholder Dashboard** — Strategic oversight for Product Managers and Documentation Leads.
 
