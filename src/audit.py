@@ -29,7 +29,6 @@ def find_matching_docs(repo, changed_files):
     Multi-file support: For each changed code file, find matching .md files
     by comparing base names. Falls back to getting-started.md if no match found.
     """
-    # Get all .md files in the repo
     all_md_files = []
     try:
         contents = repo.get_contents("", ref="main")
@@ -47,25 +46,18 @@ def find_matching_docs(repo, changed_files):
     matched_docs = set()
 
     for changed_file in changed_files:
-        # Extract base name without extension and path
         base_name = os.path.basename(changed_file)
-        base_name = os.path.splitext(base_name)[0].lower()
-        # Normalize separators
-        base_name = base_name.replace("_", "-")
+        base_name = os.path.splitext(base_name)[0].lower().replace("_", "-")
 
         found = False
         for md_file in all_md_files:
             md_base = os.path.basename(md_file)
-            md_base = os.path.splitext(md_base)[0].lower()
-            md_base = md_base.replace("_", "-")
-
-            # Match if names are the same or one contains the other
+            md_base = os.path.splitext(md_base)[0].lower().replace("_", "-")
             if base_name in md_base or md_base in base_name:
                 matched_docs.add(md_file)
                 found = True
 
         if not found:
-            # Fall back to getting-started.md
             matched_docs.add("getting-started.md")
 
     return list(matched_docs) if matched_docs else ["getting-started.md"]
@@ -157,15 +149,20 @@ def get_issue_data(repo, issue_number):
 
 
 def run_single_doc_audit(diff, doc_content, doc_path, score):
-    """Runs a drift + style audit for a single doc file."""
+    """Runs a drift + style audit for a single doc file with severity scoring."""
     client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
     prompt = (
         "You are a Senior Technical Writer reviewing a pull request. "
         "Perform a two-part audit and respond in this exact format:\n\n"
         "**DRIFT AUDIT**\n"
-        "Start with YES or NO in bold. One sentence explaining what drifted and why it matters. "
-        "If YES, provide a corrected Markdown snippet under a heading called Suggested Fix.\n\n"
+        "Start with YES or NO in bold. One sentence explaining what drifted and why it matters.\n"
+        "If YES, assign a severity label on the next line:\n"
+        "- 🔴 CRITICAL — drift that would break an AI agent or cause a production incident "
+        "(wrong function signatures, deprecated endpoints, missing required parameters, broken auth flows)\n"
+        "- 🟡 MINOR — drift that is inaccurate but recoverable by a human "
+        "(outdated examples, wrong variable names, minor description mismatches)\n"
+        "Then provide the corrected Markdown snippet under a heading called Suggested Fix.\n\n"
         "**STYLE AUDIT**\n"
         "Two to three bullet points maximum. Each bullet is one specific, actionable suggestion. "
         "No preamble. No summary. No encouragement. Just the fixes.\n\n"
@@ -190,7 +187,7 @@ def run_single_doc_audit(diff, doc_content, doc_path, score):
 
 
 def run_issue_audit(doc_content, failure_summary, score):
-    """Runs a targeted audit based on a Doc Detective failure report."""
+    """Runs a targeted audit based on a Doc Detective failure report with severity scoring."""
     client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
     prompt = (
@@ -198,7 +195,10 @@ def run_issue_audit(doc_content, failure_summary, score):
         "FAILURE SUMMARY:\n" + failure_summary + "\n\n"
         "Respond in this exact format:\n\n"
         "**FAILURE AUDIT**\n"
-        "One sentence identifying what in the documentation is inaccurate or missing that caused these failures.\n\n"
+        "One sentence identifying what in the documentation is inaccurate or missing that caused these failures.\n"
+        "Assign a severity label on the next line:\n"
+        "- 🔴 CRITICAL — failure that would break an AI agent or cause a production incident\n"
+        "- 🟡 MINOR — failure that is inaccurate but recoverable by a human\n\n"
         "**SUGGESTED FIX**\n"
         "The corrected Markdown snippet only. No explanation before or after it.\n\n"
         "**STYLE AUDIT**\n"
@@ -239,16 +239,15 @@ if __name__ == "__main__":
         try:
             diff, affected_files, pr = get_pr_data(repo, pr_number)
 
-            # Find matching doc files for all changed files
             doc_files = find_matching_docs(repo, affected_files)
             print("Doc files to audit: " + str(doc_files))
 
-            # Build one combined comment
             combined_comment = "## 🛡️ Doc-Sentinel Audit Result\n"
             combined_comment += "**Files audited:** " + ", ".join(["`" + f + "`" for f in doc_files]) + "\n\n"
             combined_comment += "---\n\n"
 
             any_drift = False
+            any_critical = False
 
             for doc_path in doc_files:
                 doc_content = get_doc_content(repo, doc_path)
@@ -264,16 +263,22 @@ if __name__ == "__main__":
 
                 if "**YES**" in audit_result or audit_result.strip().startswith("YES"):
                     any_drift = True
+                if "🔴 CRITICAL" in audit_result:
+                    any_critical = True
 
                 combined_comment += "### `" + doc_path + "`\n"
                 combined_comment += "**AI-Readability Score:** " + str(readability_score) + "%\n\n"
                 combined_comment += audit_result + "\n\n---\n\n"
 
-            # Post the single combined comment
             pr.create_issue_comment(combined_comment)
 
-            # Write outputs
-            label = "Docs: Action Required" if any_drift else "Docs: Passed"
+            if any_critical:
+                label = "Docs: Critical Drift"
+            elif any_drift:
+                label = "Docs: Action Required"
+            else:
+                label = "Docs: Passed"
+
             if "GITHUB_OUTPUT" in os.environ:
                 with open(os.environ["GITHUB_OUTPUT"], "a") as f:
                     f.write("audit_label=" + label + "\n")
