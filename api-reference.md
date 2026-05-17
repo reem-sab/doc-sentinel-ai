@@ -2,7 +2,7 @@
 
 ## Authentication
 
-Use the `authenticate(api_key)` function to authenticate your session.
+Use the `authenticate(api_key, timeout=30)` function to authenticate your session.
 
 ## Functions
 
