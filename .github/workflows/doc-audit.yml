@@ -39,7 +39,7 @@ jobs:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: pip install PyGithub google-genai python-dotenv posthog --upgrade
+        run: pip install PyGithub google-genai python-dotenv "posthog>=6.0.0" --upgrade
 
       - name: Run AI Audit
         id: run_audit_step
