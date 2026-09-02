@@ -4,38 +4,38 @@
 
 Built by a Senior Technical Writer who got tired of waiting for someone else to solve documentation debt.
 
-🌐 **[reem-sab.github.io/doc-sentinel-ai](https://reem-sab.github.io/doc-sentinel-ai/)** — Live demo and landing page
+🌐 Live demo and landing page: **[reem-sab.github.io/doc-sentinel-ai](https://reem-sab.github.io/doc-sentinel-ai/)**
 
 ---
 
-## 🎯 The Problem
+## 🎯 The problem
 
 Wrong documentation is more dangerous than no documentation.
 
 When a developer follows outdated instructions with confidence and something breaks in production, that is not a people problem. It is a systems problem. Nobody flagged the drift. Nobody had a safety net.
 
-Doc-Sentinel is that safety net. It hooks into your GitHub Actions pipeline, compares every code change against your documentation using AI, and posts its findings directly on the pull request — before anything merges.
+Doc-Sentinel is that safety net. It hooks into your GitHub Actions pipeline, compares every code change against your documentation using AI, and posts its findings directly on the pull request, before anything merges.
 
 ---
 
 ## 🚀 Features
 
 - **Multi-File Drift Detection:** Automatically identifies which documentation files are affected by each code change and audits all of them in a single PR comment.
-- **Historical Audit CLI:** Scan your entire repository for existing documentation drift in one command. Get a full health report across every `.md` file — not just what changes going forward.
-- **Semantic Integrity Audits:** Uses Gemini 2.0 Flash to understand the *intent* of code changes, catching logic shifts that regex-based linters miss.
-- **Intelligence Scoring:** Scores your documentation for AI-Readability using the [AI-Readability Style Guide](./AI_STYLE_GUIDE.md) — catching vague pronouns, broken heading hierarchy, dense paragraphs, and missing code block metadata.
-- **Actionable Remediation:** Posts severity labels, a one-sentence explanation, and a corrected Markdown snippet directly on the PR — ready to paste in.
+- **Historical Audit CLI:** Scan your entire repository for existing documentation drift in one command. Get a full health report across every `.md` file, not just what changes going forward.
+- **Semantic Integrity Audits:** Uses Gemini 2.0 Flash to understand the **intent** of code changes, catching logic shifts that regex-based linters miss.
+- **Intelligence Scoring:** Scores your documentation for AI-Readability using the [AI-Readability Style Guide](./AI_STYLE_GUIDE.md), catching vague pronouns, broken heading hierarchy, dense paragraphs, and missing code block metadata.
+- **Actionable Remediation:** Posts severity labels, a one-sentence explanation, and a corrected Markdown snippet directly on the PR, ready to paste in.
 - **Zero-Friction CI/CD:** Runs natively in GitHub Actions. No new tools, no new workflows.
-- **Doc Detective Integration:** When Doc Detective test failures are detected, Doc Sentinel automatically wakes up, audits the affected file, and posts findings back on the issue.
+- **Doc Detective Integration:** When Doc Detective test failures are detected, Doc-Sentinel automatically wakes up, audits the affected file, and posts findings back on the issue.
 
 ---
 
-## 🧠 The Two-Part Audit
+## 🧠 The two-part audit
 
 Every Doc-Sentinel run performs two distinct checks:
 
 **1. Drift Audit**
-Gemini compares the code diff against the existing documentation to detect Technical Drift — changes to function signatures, parameters, renamed methods, or removed steps that are not reflected in the docs. If drift is found, the result starts with `YES` and a `Docs: Action Required` label is applied.
+Gemini compares the code diff against the existing documentation to detect technical drift: changes to function signatures, parameters, renamed methods, or removed steps that are not reflected in the docs. If drift is found, the result starts with `YES` and a `Docs: Action Required` label is applied.
 
 **2. Intelligence Audit**
 The `DocSentinelIntelligence` engine scores the documentation for AI-Readability using the standards defined in the [AI-Readability Style Guide](./AI_STYLE_GUIDE.md). It checks for:
@@ -52,21 +52,21 @@ The result is a **0–100% AI-Readability Score** posted on every PR alongside t
 
 ---
 
-## 🔍 Multi-File Support
+## 🔍 Multi-file support
 
 Doc-Sentinel automatically maps changed code files to their corresponding documentation using name-based matching. When a PR touches multiple files, Doc-Sentinel audits all relevant documentation and posts one combined comment with a section per file.
 
-For example, a PR that changes both `auth.py` and `api_client.py` will automatically find and audit `authentication.md` and `api-reference.md` — no configuration needed.
+For example, a PR that changes both `auth.py` and `api_client.py` automatically finds and audits `authentication.md` and `api-reference.md`, with no configuration needed.
 
 If no matching doc file is found, Doc-Sentinel falls back to `getting-started.md`.
 
 ---
 
-## 🕵️ Historical Audit CLI
+## 🕵️ Historical audit CLI
 
 The PR bot catches drift going forward. The Historical Audit tells you how bad the damage already is.
 
-Run it once to get a full picture of your existing documentation health — every `.md` file in your repo, scored and audited against its corresponding code.
+Run it once to get a full picture of your existing documentation health across every `.md` file in your repo, scored and audited against its corresponding code.
 
 ### Installation
 
@@ -90,10 +90,10 @@ python historical_audit.py --repo OWNER/REPO --all --output my-report.md
 ### What you get
 
 A full Markdown report with:
-- **Summary table** — total files audited, accurate, outdated, partial
-- **Files requiring attention** — each outdated file with its audit findings and suggested fixes
-- **Files in good shape** — listed with their AI-Readability scores
-- **Average AI-Readability Score** across the entire repo
+- **Summary table**: total files audited, accurate, outdated, and partial
+- **Files requiring attention**: each outdated file with its audit findings and suggested fixes
+- **Files in good shape**: listed with their AI-Readability scores
+- **Average AI-Readability Score**: computed across the entire repo
 
 ### Example output
 
@@ -118,7 +118,7 @@ Healthy: 9
 
 ---
 
-## 🛠 Tech Stack
+## 🛠 Tech stack
 
 - **LLM Orchestration:** Google Gemini 2.0 Flash
 - **System Logic:** Python 3.10+
@@ -127,34 +127,34 @@ Healthy: 9
 
 ---
 
-## 🧪 How It Works
+## 🧪 How it works
 
 1. **Event Trigger:** A developer opens a pull request, pushes a code change, or a Doc Detective test failure issue is labeled `doc-detective`.
 2. **File Mapping:** Doc-Sentinel scans the repo for `.md` files and maps changed code files to their corresponding documentation using name-based matching.
-3. **Drift Analysis:** Gemini evaluates each code change against the matched documentation to detect Technical Drift.
+3. **Drift Analysis:** Gemini evaluates each code change against the matched documentation to detect technical drift.
 4. **Intelligence Scoring:** The `DocSentinelIntelligence` engine scores each doc file against the AI-Readability Style Guide.
-5. **Remediation:** One combined comment is posted on the PR with a section per file — severity label, explanation, and corrected Markdown snippet.
+5. **Remediation:** Doc-Sentinel posts one combined comment on the PR with a section per file, containing a severity label, explanation, and corrected Markdown snippet.
 
 ---
 
 ## 🗺️ Roadmap
 
-- **Phase 1: Automated Detection & Reporting** ✅ Complete
-- **Phase 2: Multi-File Audits** ✅ Complete — Recursive scanning across all `.md` files with automatic code-to-doc mapping.
-- **Phase 2.5: Doc Detective Integration** ✅ Complete — When Doc Detective test failures are detected, Doc Sentinel automatically triggers a documentation audit. Built in collaboration with [@hawkeyexl](https://github.com/hawkeyexl).
-- **Phase 2.75: Historical Audit CLI** ✅ Complete — Scan your entire repo for existing documentation drift in one command.
-- **Phase 3: Autonomous Remediation** — Agent opens a PR with corrected documentation for human review, validated by Doc Detective before merging.
-- **Phase 4: Stakeholder Dashboard** — Strategic oversight for Product Managers and Documentation Leads.
+- **Phase 1: Automated Detection and Reporting** ✅ Complete
+- **Phase 2: Multi-File Audits** ✅ Complete. Recursive scanning across all `.md` files with automatic code-to-doc mapping.
+- **Phase 2.5: Doc Detective Integration** ✅ Complete. When Doc Detective test failures are detected, Doc-Sentinel automatically triggers a documentation audit. Built in collaboration with [@hawkeyexl](https://github.com/hawkeyexl).
+- **Phase 2.75: Historical Audit CLI** ✅ Complete. Scan your entire repo for existing documentation drift in one command.
+- **Phase 3: Autonomous Remediation:** Agent opens a PR with corrected documentation for human review, validated by Doc Detective before merging.
+- **Phase 4: Stakeholder Dashboard:** Strategic oversight for Product Managers and Documentation Leads.
 
 ---
 
-## ⚡ Quick Start
+## ⚡ Quick start
 
 ### 1. Add your secrets to GitHub
 
 Go to your repo → Settings → Secrets and variables → Actions and add:
-- `GOOGLE_API_KEY` — your Google Gemini API key from [Google AI Studio](https://aistudio.google.com)
-- `GITHUB_TOKEN` — automatically provided by GitHub Actions
+- `GOOGLE_API_KEY`: your Google Gemini API key from [Google AI Studio](https://aistudio.google.com)
+- `GITHUB_TOKEN`: automatically provided by GitHub Actions
 
 ### 2. Add the workflow file
 
@@ -196,7 +196,7 @@ jobs:
 
 ### 3. That's it
 
-Open a pull request and Doc-Sentinel will automatically find the relevant documentation files, audit them all, and post its findings as a single combined comment.
+Open a pull request and Doc-Sentinel automatically finds the relevant documentation files, audits them all, and posts its findings as a single combined comment.
 
 ---
 
