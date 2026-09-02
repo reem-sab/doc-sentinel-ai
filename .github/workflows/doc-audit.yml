@@ -39,7 +39,7 @@ jobs:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: pip install PyGithub google-genai python-dotenv --upgrade
+        run: pip install PyGithub google-genai python-dotenv posthog --upgrade
 
       - name: Run AI Audit
         id: run_audit_step
@@ -49,6 +49,9 @@ jobs:
           REPO_NAME: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
+          # Anonymous telemetry auto-disables when POSTHOG_API_KEY is empty.
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
         run: python src/audit.py
 
       - name: Generate Dashboard Summary

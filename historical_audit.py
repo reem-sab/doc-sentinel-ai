@@ -25,6 +25,17 @@ from datetime import datetime
 from github import Github, Auth
 from google import genai
 
+# Anonymous, fail-open developer telemetry. Imported defensively so a missing
+# or broken telemetry module can never stop an audit from running.
+try:
+    from src.telemetry import track_event, flush_telemetry
+except Exception:  # pragma: no cover - telemetry is strictly best-effort
+    def track_event(*args, **kwargs):
+        pass
+
+    def flush_telemetry(*args, **kwargs):
+        pass
+
 
 # --- ARGUMENT PARSING ---
 
@@ -227,6 +238,17 @@ def build_report(results, repo_name, audit_all, timestamp):
 def main():
     args = parse_args()
 
+    # --- TELEMETRY: CLI invocation started (arguments parsed successfully) ---
+    # We record what the operator turned on, never who they are or what repo.
+    custom_config = os.path.exists("sentinel.yaml")
+    track_event("cli_audit_started", {
+        "scan_type": "all_docs" if args.audit_all else "matched_only",
+        "custom_output": args.output != "doc-sentinel-report.md",
+        "token_from_flag": args.token is not None,
+        "key_from_flag": args.key is not None,
+        "custom_config_found": custom_config,
+    })
+
     github_token = args.token or os.getenv("GITHUB_TOKEN")
     google_key = args.key or os.getenv("GOOGLE_API_KEY")
 
@@ -311,6 +333,20 @@ def main():
     # Print summary to terminal
     total = len(results)
     outdated = sum(1 for r in results if r["status"] in ("OUTDATED", "PARTIAL"))
+
+    # --- TELEMETRY: documentation drift anomalies caught in this run ---
+    # OUTDATED is treated as the higher-severity signal over PARTIAL.
+    if outdated > 0:
+        if any(r["status"] == "OUTDATED" for r in results):
+            highest_severity = "OUTDATED"
+        else:
+            highest_severity = "PARTIAL"
+        track_event("drift_detected", {
+            "drift_count": outdated,
+            "highest_severity": highest_severity,
+            "files_audited": total,
+        })
+
     print("\n--- SUMMARY ---")
     print("Files audited: " + str(total))
     print("Requiring attention: " + str(outdated))
@@ -324,4 +360,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # flush_telemetry() lives in a finally block so queued events are drained
+    # to PostHog on every exit path — normal completion, sys.exit(), or error —
+    # before the fast-terminating CLI process tears down its threads.
+    try:
+        main()
+    finally:
+        flush_telemetry()
