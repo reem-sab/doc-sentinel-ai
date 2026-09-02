@@ -112,6 +112,19 @@ def track_event(event_name, properties=None):
         pass
 
 
+def track_crash(exception):
+    """
+    Record that a run terminated on an unhandled exception, fail-open.
+
+    Privacy note: we send only the exception's class name (e.g. "ValueError"),
+    never the message or traceback. Exception messages routinely contain file
+    paths, hostnames, and other identifying strings, so capturing them would
+    defeat the anonymization guarantees. The class name alone is enough to see
+    which failure modes users hit most.
+    """
+    track_event("cli_crashed", {"error_type": type(exception).__name__})
+
+
 def flush_telemetry():
     """
     Force the PostHog background consumer to drain its queue.

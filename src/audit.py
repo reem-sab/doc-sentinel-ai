@@ -11,12 +11,15 @@ from dotenv import load_dotenv
 # or broken telemetry module can never stop an audit from running, whether this
 # file is run directly (python src/audit.py) or imported as src.audit.
 try:
-    from telemetry import track_event, flush_telemetry
+    from telemetry import track_event, track_crash, flush_telemetry
 except Exception:  # pragma: no cover - telemetry is strictly best-effort
     try:
-        from src.telemetry import track_event, flush_telemetry
+        from src.telemetry import track_event, track_crash, flush_telemetry
     except Exception:
         def track_event(*args, **kwargs):
+            pass
+
+        def track_crash(*args, **kwargs):
             pass
 
         def flush_telemetry(*args, **kwargs):
@@ -328,6 +331,7 @@ if __name__ == "__main__":
 
         except Exception as e:
             print("CRITICAL ERROR (PR): " + str(e))
+            track_crash(e)
             sys.exit(1)
         finally:
             # Drain queued events before the fast-terminating process exits.
@@ -364,6 +368,7 @@ if __name__ == "__main__":
 
         except Exception as e:
             print("CRITICAL ERROR (Issue): " + str(e))
+            track_crash(e)
             sys.exit(1)
         finally:
             # Drain queued events before the fast-terminating process exits.

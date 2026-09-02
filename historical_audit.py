@@ -28,9 +28,12 @@ from google import genai
 # Anonymous, fail-open developer telemetry. Imported defensively so a missing
 # or broken telemetry module can never stop an audit from running.
 try:
-    from src.telemetry import track_event, flush_telemetry
+    from src.telemetry import track_event, track_crash, flush_telemetry
 except Exception:  # pragma: no cover - telemetry is strictly best-effort
     def track_event(*args, **kwargs):
+        pass
+
+    def track_crash(*args, **kwargs):
         pass
 
     def flush_telemetry(*args, **kwargs):
@@ -363,7 +366,12 @@ if __name__ == "__main__":
     # flush_telemetry() lives in a finally block so queued events are drained
     # to PostHog on every exit path — normal completion, sys.exit(), or error —
     # before the fast-terminating CLI process tears down its threads.
+    # `except Exception` records a crash but re-raises so behaviour is unchanged;
+    # it will not catch SystemExit (a normal sys.exit is not a crash).
     try:
         main()
+    except Exception as exc:
+        track_crash(exc)
+        raise
     finally:
         flush_telemetry()
