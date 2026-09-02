@@ -7,7 +7,9 @@ losing events when the process exits.
 
 The implementation lives in [`src/telemetry.py`](../src/telemetry.py). The call
 sites are in [`historical_audit.py`](../historical_audit.py) (the argparse CLI)
-and [`src/audit.py`](../src/audit.py) (the GitHub Actions audit engine).
+and [`src/audit.py`](../src/audit.py) (the GitHub Actions audit engine). To turn
+the captured events into charts, see the companion
+[dashboard guide](./telemetry-dashboard.md).
 
 ---
 
@@ -174,7 +176,7 @@ unconditional.**
 
 ## Example Schema
 
-Two events are instrumented across the two entry points. Every event also carries
+Three events are instrumented across the two entry points. Every event also carries
 the global context properties injected automatically by `track_event()`:
 `os_platform` (str), `tool_version` (str), and `is_ci` (bool).
 
@@ -202,6 +204,17 @@ severity of issues the tool surfaces in the wild.
 | `drift_count`      | int    | Number of documents (or failures) with detected drift in this run        |
 | `highest_severity` | string | Worst severity seen: `critical` / `minor` (Actions) or `OUTDATED` / `PARTIAL` (CLI) |
 | `files_audited`    | int    | Total number of files inspected during the run                           |
+
+### `cli_crashed`
+
+Fired when a run terminates on an unhandled exception, to measure which failure
+modes users hit most. It carries **only the exception class name** — never the
+message or traceback, which routinely contain file paths and hostnames and would
+break the anonymization guarantees.
+
+| Property     | Type   | Description                                            |
+| :----------- | :----- | :---------------------------------------------------- |
+| `error_type` | string | The exception's class name, e.g. `ValueError`, `KeyError` |
 
 ---
 
