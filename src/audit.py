@@ -7,6 +7,21 @@ from github import Github, Auth
 from google import genai
 from dotenv import load_dotenv
 
+# Anonymous, fail-open developer telemetry. Imported defensively so a missing
+# or broken telemetry module can never stop an audit from running, whether this
+# file is run directly (python src/audit.py) or imported as src.audit.
+try:
+    from telemetry import track_event, flush_telemetry
+except Exception:  # pragma: no cover - telemetry is strictly best-effort
+    try:
+        from src.telemetry import track_event, flush_telemetry
+    except Exception:
+        def track_event(*args, **kwargs):
+            pass
+
+        def flush_telemetry(*args, **kwargs):
+            pass
+
 load_dotenv()
 
 
@@ -229,6 +244,21 @@ if __name__ == "__main__":
     pr_number = os.getenv("PR_NUMBER")
     issue_number = os.getenv("ISSUE_NUMBER")
 
+    # --- TELEMETRY: audit invocation started (trigger resolved) ---
+    # Records the trigger type and whether a custom config is present. No repo
+    # name, PR/issue numbers, tokens, or other identifying data is captured.
+    if pr_number:
+        scan_type = "pull_request"
+    elif issue_number:
+        scan_type = "doc_detective_issue"
+    else:
+        scan_type = "none"
+    track_event("cli_audit_started", {
+        "scan_type": scan_type,
+        "trigger_source": "github_actions",
+        "custom_config_found": os.path.exists("sentinel.yaml"),
+    })
+
     auth = Auth.Token(github_token)
     g = Github(auth=auth)
     repo = g.get_repo(repo_name)
@@ -248,6 +278,7 @@ if __name__ == "__main__":
 
             any_drift = False
             any_critical = False
+            drift_count = 0
 
             for doc_path in doc_files:
                 doc_content = get_doc_content(repo, doc_path)
@@ -263,6 +294,7 @@ if __name__ == "__main__":
 
                 if "**YES**" in audit_result or audit_result.strip().startswith("YES"):
                     any_drift = True
+                    drift_count += 1
                 if "🔴 CRITICAL" in audit_result:
                     any_critical = True
 
@@ -279,6 +311,14 @@ if __name__ == "__main__":
             else:
                 label = "Docs: Passed"
 
+            # --- TELEMETRY: documentation drift anomalies caught this run ---
+            if drift_count > 0:
+                track_event("drift_detected", {
+                    "drift_count": drift_count,
+                    "highest_severity": "critical" if any_critical else "minor",
+                    "files_audited": len(doc_files),
+                })
+
             if "GITHUB_OUTPUT" in os.environ:
                 with open(os.environ["GITHUB_OUTPUT"], "a") as f:
                     f.write("audit_label=" + label + "\n")
@@ -289,6 +329,9 @@ if __name__ == "__main__":
         except Exception as e:
             print("CRITICAL ERROR (PR): " + str(e))
             sys.exit(1)
+        finally:
+            # Drain queued events before the fast-terminating process exits.
+            flush_telemetry()
 
     # --- DOC DETECTIVE ISSUE TRIGGER ---
     elif issue_number:
@@ -310,12 +353,23 @@ if __name__ == "__main__":
             )
             issue.create_comment(comment)
 
+            # --- TELEMETRY: a Doc Detective failure is a caught drift anomaly ---
+            track_event("drift_detected", {
+                "drift_count": 1,
+                "highest_severity": "critical" if "🔴 CRITICAL" in audit_result else "minor",
+                "files_audited": 1,
+            })
+
             print("Issue audit complete.")
 
         except Exception as e:
             print("CRITICAL ERROR (Issue): " + str(e))
             sys.exit(1)
+        finally:
+            # Drain queued events before the fast-terminating process exits.
+            flush_telemetry()
 
     else:
         print("No PR or issue detected. Exiting.")
+        flush_telemetry()
         sys.exit(0)
