@@ -99,9 +99,12 @@ def track_event(event_name, properties=None):
         if properties:
             payload.update(properties)
 
+        # PostHog SDK >= 6.0 takes the event name positionally and requires
+        # distinct_id as a keyword argument. Passing distinct_id positionally
+        # (the pre-6.0 style) raises TypeError on modern SDKs.
         posthog.capture(
-            get_anonymous_id(),
-            event=event_name,
+            event_name,
+            distinct_id=get_anonymous_id(),
             properties=payload,
         )
     except Exception:
