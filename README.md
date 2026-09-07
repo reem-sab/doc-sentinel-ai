@@ -27,6 +27,7 @@ Doc-Sentinel is that safety net. It hooks into your GitHub Actions pipeline, com
 - **Actionable Remediation:** Posts severity labels, a one-sentence explanation, and a corrected Markdown snippet directly on the PR, ready to paste in.
 - **Zero-Friction CI/CD:** Runs natively in GitHub Actions. No new tools, no new workflows.
 - **Doc Detective Integration:** When Doc Detective test failures are detected, Doc-Sentinel automatically wakes up, audits the affected file, and posts findings back on the issue.
+- **Product Analytics:** PostHog (self-reported usage and audit outcomes)
 
 ---
 
