@@ -154,6 +154,7 @@ Healthy: 9
 - **System Logic:** Python 3.10+
 - **Cloud Infrastructure:** GitHub Actions (CI/CD)
 - **Governance:** Secure environment secret management (`GOOGLE_API_KEY`, `GITHUB_TOKEN`)
+- **Product Analytics:** PostHog (self-reported usage and audit outcomes)
 
 ---
 
