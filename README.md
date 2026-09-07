@@ -52,6 +52,35 @@ The result is a **0–100% AI-Readability Score** posted on every PR alongside t
 
 ---
 
+## 📈 Measuring Itself
+
+[#-measuring-itself](#-measuring-itself)
+
+Doc-Sentinel tracks its own behavior with PostHog, because a tool that
+audits documentation quality should be able to show its own evidence.
+
+📊 **[Live public dashboard](https://us.posthog.com/shared/fudAKtSiK2nY9RmXk1z_mqSjYE-2Gg)**
+
+| Event | Fires when | Key properties |
+| ----- | ---------- | -------------- |
+| `audit_started` | A PR, push, or labeled issue triggers a run | `trigger_type`, `files_matched` |
+| `drift_detected` | Gemini returns `YES` on the Drift Audit | `severity`, `doc_file` |
+| `audit_clean` | The Drift Audit finds no technical drift | `doc_file` |
+| `readability_scored` | The Intelligence engine finishes scoring | `score`, `rules_failed` |
+| `remediation_posted` | A corrected snippet is posted on the PR | `doc_file` |
+| `historical_audit_run` | The CLI scans a full repository | `mode`, `files_audited` |
+
+No documentation content, code, repository names, or diffs are ever sent.
+Events carry counts, scores, and rule names only.
+
+### Opting out
+
+[#opting-out](#opting-out)
+
+Set the following in your workflow to disable analytics entirely:
+
+
+
 ## 🔍 Multi-file support
 
 Doc-Sentinel automatically maps changed code files to their corresponding documentation using name-based matching. When a PR touches multiple files, Doc-Sentinel audits all relevant documentation and posts one combined comment with a section per file.
