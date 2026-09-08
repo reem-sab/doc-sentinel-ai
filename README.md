@@ -61,17 +61,20 @@ Doc-Sentinel reports its own behavior to PostHog, because a tool that audits doc
 
 Doc-Sentinel sends the following events.
 
-| **Event** | **Fires when** |
-| --------- | -------------- |
-| `cli_audit_started` | An audit run begins, from either a pull request or the historical audit CLI |
-| `drift_detected` | The drift audit finds code changes that the docs do not reflect |
+| **Event** | **Fires when** | **Properties** |
+| --------- | -------------- | -------------- |
+| `cli_audit_started` | An audit run begins | `scan_type`, `trigger_source`, `custom_config_found` |
+| `drift_detected` | The drift audit finds code changes that the docs do not reflect | `drift_count`, `highest_severity`, `files_audited` |
+
+Every event also carries `os_platform`, `tool_version`, and `is_ci`.
 
 Unhandled exceptions send the exception class name and nothing else.
 
 Telemetry stays off unless you set `POSTHOG_API_KEY` yourself.
 
-<!-- VERIFY before publishing: confirm the event property payloads in src/audit.py (lines 259, 319, 361) and historical_audit.py (lines 247, 347) exclude repository names and file paths, and check what src/telemetry.py hashes into the anonymous ID. Delete this comment once confirmed. -->
-Doc-Sentinel never transmits documentation content, code, diffs, or repository names. An anonymous hashed ID identifies each run, which groups repeat runs from the same repository.
+Doc-Sentinel never transmits documentation content, code, diffs, file paths, or repository names. Each event carries counts, severity labels, the operating system name, the tool version, and whether the run happened in a CI environment.
+
+Repeat runs are grouped by an identifier derived from a truncated hash of the machine hostname and the working directory. Neither value is transmitted. Because both are guessable, treat the identifier as a pseudonym rather than a guarantee of anonymity.
 
 To disable telemetry when a key is present, set the following variable:
 
