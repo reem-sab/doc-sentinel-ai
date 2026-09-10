@@ -259,6 +259,83 @@ Doc-Sentinel finds the relevant documentation files, audits all of them, and pos
 
 ---
 
+## Running in CI
+
+The drift check is a single CI step. It runs `python src/audit.py`, which takes no command-line flags and reads everything it needs from environment variables. Setting `PR_NUMBER` is what selects the pull request drift audit.
+
+### Add the workflow
+
+Create `.github/workflows/doc-sentinel.yml` and populate the file with the following code. This workflow runs the drift check on every pull request:
+
+```yaml
+name: Doc-Sentinel Drift Check
+
+on:
+  pull_request:
+
+jobs:
+  drift-check:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install PyGithub google-genai python-dotenv "posthog>=6.0.0" --upgrade
+
+      - name: Run drift check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          REPO_NAME: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python src/audit.py
+```
+
+The workflow needs 2 things to work:
+
+- `fetch-depth: 2` gives Doc-Sentinel access to the previous commit, which it needs to compute the diff.
+- The `permissions` block grants `pull-requests: write` so Doc-Sentinel can post its comment and apply its label.
+
+### Configure the environment variables
+
+The step reads the following variables:
+
+| **Variable** | **Required** | **Value** |
+| ------------ | ------------ | --------- |
+| `GITHUB_TOKEN` | Yes | Provided automatically by GitHub Actions as `secrets.GITHUB_TOKEN`. |
+| `GOOGLE_API_KEY` | Yes | Your Google Gemini API key, stored as a repository secret. |
+| `REPO_NAME` | Yes | The repository in `OWNER/REPO` format. Use `github.repository`. |
+| `PR_NUMBER` | Yes | The pull request to audit. Use `github.event.pull_request.number`. |
+| `POSTHOG_API_KEY` | No | Enables anonymous telemetry. Leave it unset to keep telemetry off. |
+| `POSTHOG_HOST` | No | Your PostHog region host. Only read when `POSTHOG_API_KEY` is set. |
+
+### Read the result
+
+When the step finishes, Doc-Sentinel posts one combined comment on the pull request with a section for each audited documentation file, containing the drift verdict, a severity label, an AI-readability score, and a suggested fix.
+
+The step also writes an `audit_label` output holding one of `Docs: Critical Drift`, `Docs: Action Required`, or `Docs: Passed`, along with an `affected_files` output listing the changed files.
+
+The step exits `0` on a successful audit, including when it finds drift, so a drift finding does not fail the build. It exits `1` only when the audit itself fails, such as an unreachable Gemini API or an invalid token. To gate merges on drift instead, apply branch protection to the `Docs:` labels rather than to the step's exit code.
+
+### Run on other CI providers
+
+Doc-Sentinel reads the pull request through the GitHub API rather than the checked-out working tree, so any CI provider can run it. Install the dependencies, set the same 4 required variables, and run `python src/audit.py`.
+
+---
+
 ## Author
 
 Reem Sabawi, Senior Technical Writer, Technical Educator, and AI-Native Builder.
