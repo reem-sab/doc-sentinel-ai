@@ -116,7 +116,7 @@ class DocSentinelIntelligence:
 
 # --- CODE-TO-DOC MAPPING ------------------------------------------------------
 
-def _match_key(path):
+def match_key(path):
     """Normalize a file path for name-based matching: auth_service.py -> auth-service."""
     base_name = os.path.basename(path)
     return os.path.splitext(base_name)[0].lower().replace("_", "-")
@@ -131,10 +131,10 @@ def match_docs_by_file(md_files, changed_files):
     """
     matches = {}
     for changed_file in changed_files:
-        base_name = _match_key(changed_file)
+        base_name = match_key(changed_file)
         matches[changed_file] = [
             md_file for md_file in md_files
-            if base_name in _match_key(md_file) or _match_key(md_file) in base_name
+            if base_name in match_key(md_file) or match_key(md_file) in base_name
         ]
     return matches
 

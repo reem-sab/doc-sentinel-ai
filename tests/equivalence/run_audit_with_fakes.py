@@ -1,13 +1,18 @@
 """
-Run one copy of audit.py as the GitHub Action would (`python src/audit.py`),
-with GitHub, Gemini, dotenv, and telemetry replaced by recording fakes.
+Run one copy of audit.py (as the GitHub Action runs it) or historical_audit.py
+(as the CLI runs it), with GitHub, Gemini, dotenv, and telemetry replaced by
+recording fakes.
 
 Usage (called by compare_audit.py, one subprocess per run):
     python run_audit_with_fakes.py AUDIT_PY SCENARIO_JSON OUTPUT_JSON
 
 Everything the run produces is written to OUTPUT_JSON: stdout, exit code,
 posted comments, GITHUB_OUTPUT lines, telemetry events, every prompt sent to
-the model, and every sleep.
+the model, every sleep, and the report file if the scenario's argv writes one
+("{report}" in argv is replaced with a temp path).
+
+Optional scenario keys: "argv" (command-line arguments), "env" (variables to
+set; null unsets one).
 """
 
 import io
@@ -153,11 +158,22 @@ for key in ("PR_NUMBER", "ISSUE_NUMBER"):
         os.environ[key] = str(scenario[key])
 for key in ("DOC_SENTINEL_CHECKER_PROVIDER", "DOC_SENTINEL_CHECKER_MODEL"):
     os.environ.pop(key, None)
+for key, value in scenario.get("env", {}).items():
+    if value is None:
+        os.environ.pop(key, None)
+    else:
+        os.environ[key] = value
+
+report_dir = tempfile.mkdtemp()
+report_path = os.path.join(report_dir, "report.md")
+sys.argv = [audit_path] + [a.replace("{report}", report_path) for a in scenario.get("argv", [])]
 
 # Same import path as `python src/audit.py`: the script's folder first.
 # The real src/ folder comes next so the refactored audit.py finds drift_core.
 real_src = os.path.join(os.path.dirname(__file__), "..", "..", "src")
-sys.path[:0] = [os.path.dirname(os.path.abspath(audit_path)), os.path.abspath(real_src)]
+# The repo root comes last so historical_audit.py finds `src.drift_core`.
+sys.path[:0] = [os.path.dirname(os.path.abspath(audit_path)), os.path.abspath(real_src),
+                os.path.abspath(os.path.join(real_src, ".."))]
 
 stdout = io.StringIO()
 exit_code = 0
@@ -169,7 +185,11 @@ with contextlib.redirect_stdout(stdout):
     except BaseException as e:
         exit_code = "uncaught " + type(e).__name__ + ": " + str(e)
 
-record["stdout"] = stdout.getvalue()
+record["stdout"] = stdout.getvalue().replace(report_path, "{report}")
+if os.path.exists(report_path):
+    record["report_file"] = open(report_path, encoding="utf-8").read()
+    os.unlink(report_path)
+os.rmdir(report_dir)
 record["exit_code"] = exit_code
 record["github_output"] = open(gh_output.name, encoding="utf-8").read()
 os.unlink(gh_output.name)

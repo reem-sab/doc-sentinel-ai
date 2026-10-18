@@ -17,13 +17,16 @@ Flags:
 """
 
 import os
-import re
 import sys
 import time
 import argparse
 from datetime import datetime
 from github import Github, Auth
-from google import genai
+
+# Scoring, name matching, and the checker model call are shared with the
+# GitHub Action through drift_core, so DOC_SENTINEL_CHECKER_PROVIDER and
+# DOC_SENTINEL_CHECKER_MODEL apply here too.
+from src.drift_core import DocSentinelIntelligence, match_key, run_checker, checker_settings
 
 # Anonymous, fail-open developer telemetry. Imported defensively so a missing
 # or broken telemetry module can never stop an audit from running.
@@ -83,13 +86,11 @@ def get_all_files(repo):
 
 def find_matching_code(doc_path, code_files):
     """Find code files that match a given doc file by name."""
-    doc_base = os.path.basename(doc_path)
-    doc_base = os.path.splitext(doc_base)[0].lower().replace("_", "-")
+    doc_base = match_key(doc_path)
 
     matches = []
     for code_path in code_files:
-        code_base = os.path.basename(code_path)
-        code_base = os.path.splitext(code_base)[0].lower().replace("_", "-")
+        code_base = match_key(code_path)
         if doc_base in code_base or code_base in doc_base:
             matches.append(code_path)
     return matches
@@ -108,18 +109,21 @@ def get_file_content(repo, path):
 
 def calculate_readability_score(content):
     """Calculate AI-readability score using heuristics from the style guide."""
-    score = 100
-    pronouns = len(re.findall(r'(?m)^(\s*)(It|This|They|Those)\s', content))
-    score -= min(pronouns * 10, 40)
-    if not re.search(r'^## ', content, re.M):
-        score -= 20
-    return max(score, 0)
+    return DocSentinelIntelligence(content).calculate_score()
 
 
-# --- GEMINI AUDIT ---
+# --- CHECKER AUDIT ---
 
-def run_historical_audit(doc_content, code_content, doc_path, code_path, score, client):
-    """Ask Gemini whether the doc is still accurate given the current code."""
+def _run_audit_prompt(prompt):
+    """Send a prompt to the configured checker. Errors go into the report instead of stopping the run."""
+    try:
+        return run_checker(prompt, log=lambda message: print("  " + message))
+    except Exception as e:
+        return "Error running audit: " + str(e)
+
+
+def run_historical_audit(doc_content, code_content, doc_path, code_path, score):
+    """Ask the checker model whether the doc is still accurate given the current code."""
     prompt = (
         "You are a Senior Technical Writer performing a documentation health check.\n\n"
         "Your job is to compare the CURRENT DOCUMENTATION against the CURRENT CODE and determine "
@@ -138,22 +142,10 @@ def run_historical_audit(doc_content, code_content, doc_path, code_path, score, 
         "CURRENT CODE (" + code_path + "):\n" + code_content
     )
 
-    for attempt in range(3):
-        try:
-            response = client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt
-            )
-            return response.text
-        except Exception as e:
-            if "429" in str(e) and attempt < 2:
-                print("  Rate limited, retrying in 30 seconds...")
-                time.sleep(30)
-            else:
-                return "Error running audit: " + str(e)
+    return _run_audit_prompt(prompt)
 
 
-def run_doc_only_audit(doc_content, doc_path, score, client):
+def run_doc_only_audit(doc_content, doc_path, score):
     """Audit a doc file with no matching code — check for general accuracy and style."""
     prompt = (
         "You are a Senior Technical Writer performing a documentation health check.\n\n"
@@ -170,19 +162,7 @@ def run_doc_only_audit(doc_content, doc_path, score, client):
         "CURRENT DOCUMENTATION (" + doc_path + "):\n" + doc_content
     )
 
-    for attempt in range(3):
-        try:
-            response = client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt
-            )
-            return response.text
-        except Exception as e:
-            if "429" in str(e) and attempt < 2:
-                print("  Rate limited, retrying in 30 seconds...")
-                time.sleep(30)
-            else:
-                return "Error running audit: " + str(e)
+    return _run_audit_prompt(prompt)
 
 
 # --- REPORT GENERATION ---
@@ -258,14 +238,16 @@ def main():
     if not github_token:
         print("Error: GitHub token required. Set GITHUB_TOKEN or use --token.")
         sys.exit(1)
-    if not google_key:
-        print("Error: Google API key required. Set GOOGLE_API_KEY or use --key.")
-        sys.exit(1)
+    if checker_settings()["provider"] == "gemini":
+        if not google_key:
+            print("Error: Google API key required. Set GOOGLE_API_KEY or use --key.")
+            sys.exit(1)
+        # The gemini checker reads its key from the environment.
+        os.environ["GOOGLE_API_KEY"] = google_key
 
     auth = Auth.Token(github_token)
     g = Github(auth=auth)
     repo = g.get_repo(args.repo)
-    client = genai.Client(api_key=google_key)
 
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     print("\n🛡️  Doc-Sentinel Historical Audit")
@@ -293,12 +275,12 @@ def main():
             code_content = get_file_content(repo, code_path)
             if not code_content:
                 code_path = None
-                audit_result = run_doc_only_audit(doc_content, doc_path, score, client)
+                audit_result = run_doc_only_audit(doc_content, doc_path, score)
             else:
-                audit_result = run_historical_audit(doc_content, code_content, doc_path, code_path, score, client)
+                audit_result = run_historical_audit(doc_content, code_content, doc_path, code_path, score)
         elif args.audit_all:
             code_path = None
-            audit_result = run_doc_only_audit(doc_content, doc_path, score, client)
+            audit_result = run_doc_only_audit(doc_content, doc_path, score)
         else:
             print("  No matching code file found. Skipping (use --all to include).")
             continue

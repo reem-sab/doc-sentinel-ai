@@ -221,3 +221,125 @@ SCENARIOS = {
         "gemini": [],
     },
 }
+
+
+# --- historical_audit.py --------------------------------------------------------
+
+H_OUTDATED = """**ACCURACY**
+**OUTDATED** The guide lists two events; the code sends three.
+
+**ISSUES FOUND**
+- `cli_crashed` is missing from the event table.
+
+**SUGGESTED FIXES**
+| `cli_crashed` | A run ends on an unhandled exception |
+
+**STYLE NOTES**
+- Add a summary sentence under the H1."""
+
+H_PARTIAL = """**ACCURACY**
+**PARTIAL** Most steps hold, but the dashboard URL changed.
+
+**ISSUES FOUND**
+- The shared dashboard link is stale.
+
+**STYLE NOTES**
+- Split the long setup paragraph."""
+
+H_ACCURATE = """**ACCURACY**
+**ACCURATE** The document matches the code.
+
+**ISSUES FOUND**
+None detected.
+
+**STYLE NOTES**
+- Label the code block language."""
+
+
+def hist_rule(doc_path, reply, errors=None):
+    """Scripted reply for the historical audit of one doc."""
+    rule = {"match": "CURRENT DOCUMENTATION (" + doc_path + "):", "reply": reply}
+    if errors:
+        rule["errors"] = errors
+    return rule
+
+
+REPO_ARGS = ["--repo", "reem-sab/doc-sentinel-ai", "--output", "{report}"]
+
+HISTORICAL_SCENARIOS = {
+    "hist_matched_only": {
+        "about": "Default mode: only docs with a name-matched code file (the 2 telemetry docs).",
+        "argv": REPO_ARGS,
+        "gemini": [hist_rule("docs/telemetry-guide.md", H_OUTDATED),
+                   hist_rule("docs/telemetry-dashboard.md", H_ACCURATE)],
+    },
+    "hist_all_docs": {
+        "about": "--all: every .md file, mixing code-matched and doc-only audits and all 3 statuses.",
+        "argv": REPO_ARGS + ["--all"],
+        "gemini": [hist_rule("docs/telemetry-guide.md", H_OUTDATED),
+                   hist_rule("docs/telemetry-dashboard.md", H_PARTIAL),
+                   hist_rule("getting-started.md", H_PARTIAL),
+                   hist_rule("api-reference.md", H_OUTDATED),
+                   hist_rule("README.md", H_ACCURATE),
+                   hist_rule("AI_STYLE_GUIDE.md", H_ACCURATE)],
+    },
+    "hist_all_healthy": {
+        "about": "--all with every doc accurate: healthy summary, no drift telemetry.",
+        "argv": REPO_ARGS + ["--all"],
+        "gemini": [{"match": "CURRENT DOCUMENTATION", "reply": H_ACCURATE}],
+    },
+    "hist_rate_limited_then_ok": {
+        "about": "429 twice then an answer: indented retry message, two 30 s sleeps.",
+        "argv": REPO_ARGS,
+        "gemini": [hist_rule("docs/telemetry-guide.md", H_OUTDATED, errors=["429 RESOURCE_EXHAUSTED"] * 2),
+                   hist_rule("docs/telemetry-dashboard.md", H_ACCURATE)],
+    },
+    "hist_checker_errors": {
+        "about": "429 three times on one doc, a 400 on the other: errors land in the report, run continues.",
+        "argv": REPO_ARGS,
+        "gemini": [hist_rule("docs/telemetry-guide.md", H_OUTDATED, errors=["429 RESOURCE_EXHAUSTED"] * 3),
+                   hist_rule("docs/telemetry-dashboard.md", H_ACCURATE, errors=["400 API key not valid"])],
+    },
+    "hist_code_unreadable": {
+        "about": "Matched code file cannot be fetched: falls back to the doc-only audit.",
+        "argv": REPO_ARGS,
+        "unreadable": ["src/telemetry.py"],
+        "gemini": [{"match": "No matching code file was found", "reply": H_PARTIAL}],
+    },
+    "hist_doc_unreadable": {
+        "about": "A doc cannot be fetched: skipped.",
+        "argv": REPO_ARGS,
+        "unreadable": ["docs/telemetry-guide.md"],
+        "gemini": [hist_rule("docs/telemetry-dashboard.md", H_ACCURATE)],
+    },
+    "hist_no_matches": {
+        "about": "Default mode with no code file matching any doc: nothing audited, exit 0.",
+        "argv": REPO_ARGS,
+        "drop_files": ["src/telemetry.py"],
+        "gemini": [],
+    },
+    "hist_flags_for_credentials": {
+        "about": "--token and --key flags instead of env vars, default output path telemetry flag off.",
+        "argv": REPO_ARGS + ["--token", "flag-token", "--key", "flag-key"],
+        "env": {"GITHUB_TOKEN": None, "GOOGLE_API_KEY": None},
+        "gemini": [{"match": "CURRENT DOCUMENTATION", "reply": H_ACCURATE}],
+    },
+    "hist_missing_token": {
+        "about": "No GitHub token: exit 1 before any API call.",
+        "argv": REPO_ARGS,
+        "env": {"GITHUB_TOKEN": None},
+        "gemini": [],
+    },
+    "hist_missing_key": {
+        "about": "No Google key with the default gemini checker: exit 1.",
+        "argv": REPO_ARGS,
+        "env": {"GOOGLE_API_KEY": None},
+        "gemini": [],
+    },
+    "hist_scan_failure": {
+        "about": "Listing the repo fails: exit 1.",
+        "argv": REPO_ARGS,
+        "scan_error": "403 rate limit exceeded",
+        "gemini": [],
+    },
+}
