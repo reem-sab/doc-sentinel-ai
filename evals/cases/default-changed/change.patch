@@ -1,0 +1,11 @@
+diff --git a/src/config.py b/src/config.py
+index d35237b..2209862 100644
+--- a/src/config.py
++++ b/src/config.py
+@@ -2,5 +2,5 @@
+ 
+ import os
+ 
+-MAX_RETRIES = int(os.environ.get("SENTINEL_MAX_RETRIES", "3"))
++MAX_RETRIES = int(os.environ.get("SENTINEL_MAX_RETRIES", "5"))
+ REPORT_FORMAT = os.environ.get("SENTINEL_REPORT_FORMAT", "markdown")

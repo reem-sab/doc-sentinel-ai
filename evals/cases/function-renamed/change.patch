@@ -1,0 +1,16 @@
+diff --git a/src/audit.py b/src/audit.py
+index 3e84859..f769921 100644
+--- a/src/audit.py
++++ b/src/audit.py
+@@ -12,9 +12,9 @@ def _scan_files(root):
+     return sorted(found)
+ 
+ 
+-def start_audit(api_key, paths=None):
++def run_audit(api_key, paths=None):
+     """
+-    Start a documentation audit.
++    Run a documentation audit.
+ 
+     Scans every .md file under the current folder unless paths is given.
+     Retries failed requests up to MAX_RETRIES times.

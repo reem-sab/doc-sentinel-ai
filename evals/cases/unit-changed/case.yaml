@@ -1,0 +1,14 @@
+description: session_timeout changes from milliseconds to seconds, and the returned key from timeout_ms to timeout_s.
+expect:
+  outcome: dry_run_ready
+  must_change: [docs/api-reference.md, docs/getting-started.md]
+  may_change: [README.md]
+  docs:
+    docs/api-reference.md:
+      must_contain: ["timeout_s"]
+      must_not_contain: ["timeout_ms"]
+      must_match: ['(?i)session_timeout[^\n]*seconds']
+      must_not_match: ['(?i)millisecond']
+    docs/getting-started.md:
+      must_match: ['(?i)seconds']
+      must_not_match: ['(?i)millisecond']

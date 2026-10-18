@@ -1,0 +1,8 @@
+description: The SENTINEL_MAX_RETRIES default changes from 3 to 5.
+expect:
+  outcome: dry_run_ready
+  must_change: [docs/configuration.md]
+  docs:
+    docs/configuration.md:
+      must_match: ['SENTINEL_MAX_RETRIES[^\n]*\b5\b']
+      must_not_match: ['SENTINEL_MAX_RETRIES[^\n]*\b3\b']

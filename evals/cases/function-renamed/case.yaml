@@ -1,0 +1,14 @@
+description: start_audit is renamed to run_audit, with no alias left behind.
+expect:
+  outcome: dry_run_ready
+  must_change: [README.md, docs/getting-started.md, docs/api-reference.md]
+  docs:
+    README.md:
+      must_contain: ["run_audit"]
+      must_not_contain: ["start_audit"]
+    docs/getting-started.md:
+      must_contain: ["run_audit"]
+      must_not_contain: ["start_audit"]
+    docs/api-reference.md:
+      must_contain: ["run_audit(api_key, paths=None)"]
+      must_not_contain: ["start_audit"]

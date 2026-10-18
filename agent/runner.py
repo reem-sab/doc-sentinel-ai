@@ -260,12 +260,13 @@ async def run_agent(cfg):
                 if isinstance(message, AssistantMessage):
                     for block in message.content:
                         if isinstance(block, TextBlock) and block.text.strip():
-                            final_text = block.text
                             log.add("decision", text=block.text)
                         elif isinstance(block, ThinkingBlock) and block.thinking.strip():
                             log.add("reasoning", text=block.thinking)
                 elif isinstance(message, ResultMessage):
                     result = message
+                    # The agent's closing summary. Empty when a guard stopped the session.
+                    final_text = message.result or None
     except Exception as e:
         summary.update(outcome="error", message=type(e).__name__ + ": " + str(e))
 

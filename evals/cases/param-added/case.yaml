@@ -1,0 +1,9 @@
+description: initialize_user_session gains an optional remember_me parameter.
+expect:
+  outcome: dry_run_ready
+  must_change: [docs/api-reference.md]
+  may_change: [docs/getting-started.md, README.md]
+  docs:
+    docs/api-reference.md:
+      must_contain: ["remember_me"]
+      must_match: ['initialize_user_session\(user_id, session_timeout, remember_me']

@@ -1,0 +1,23 @@
+diff --git a/src/auth_service.py b/src/auth_service.py
+index 5ae16cf..05d587c 100644
+--- a/src/auth_service.py
++++ b/src/auth_service.py
+@@ -1,14 +1,15 @@
+ """Session handling for verified users."""
+ 
+ 
+-def initialize_user_session(user_id, session_timeout):
++def initialize_user_session(user_id, session_timeout, remember_me=False):
+     """
+     Start a new session for a verified user.
+ 
+-    session_timeout is in milliseconds.
++    session_timeout is in milliseconds. Set remember_me=True to keep the
++    session after the browser closes.
+     """
+     print(f"Session started for {user_id} with a {session_timeout}ms timeout.")
+-    return {"user_id": user_id, "timeout_ms": session_timeout}
++    return {"user_id": user_id, "timeout_ms": session_timeout, "remember_me": remember_me}
+ 
+ 
+ def end_user_session(session):

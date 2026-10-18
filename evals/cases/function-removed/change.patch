@@ -1,0 +1,13 @@
+diff --git a/src/auth_service.py b/src/auth_service.py
+index 5ae16cf..0be0f7e 100644
+--- a/src/auth_service.py
++++ b/src/auth_service.py
+@@ -10,8 +10,3 @@ def initialize_user_session(user_id, session_timeout):
+     print(f"Session started for {user_id} with a {session_timeout}ms timeout.")
+     return {"user_id": user_id, "timeout_ms": session_timeout}
+ 
+-
+-def end_user_session(session):
+-    """End a session started with initialize_user_session."""
+-    print(f"Session ended for {session['user_id']}.")
+-    return True

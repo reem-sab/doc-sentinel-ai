@@ -1,0 +1,20 @@
+diff --git a/src/audit.py b/src/audit.py
+index 3e84859..faac549 100644
+--- a/src/audit.py
++++ b/src/audit.py
+@@ -5,7 +5,7 @@ import os
+ from config import MAX_RETRIES
+ 
+ 
+-def _scan_files(root):
++def _collect_markdown_files(root):
+     found = []
+     for folder, _, files in os.walk(root):
+         found += [os.path.join(folder, f) for f in files if f.endswith(".md")]
+@@ -21,5 +21,5 @@ def start_audit(api_key, paths=None):
+     """
+     if not api_key:
+         raise ValueError("api_key is required")
+-    files = paths if paths is not None else _scan_files(".")
++    files = paths if paths is not None else _collect_markdown_files(".")
+     return {"files": files, "retries": MAX_RETRIES}

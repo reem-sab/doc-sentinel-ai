@@ -1,0 +1,10 @@
+description: end_user_session is removed.
+expect:
+  outcome: dry_run_ready
+  must_change: [docs/api-reference.md, docs/getting-started.md]
+  docs:
+    docs/api-reference.md:
+      must_not_contain: ["end_user_session"]
+      must_contain: ["initialize_user_session"]
+    docs/getting-started.md:
+      must_not_contain: ["end_user_session"]

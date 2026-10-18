@@ -1,0 +1,4 @@
+description: A private helper is renamed. No documented behavior changes, so no doc should change.
+expect:
+  outcome: no_changes
+  must_change: []

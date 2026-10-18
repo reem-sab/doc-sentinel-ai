@@ -1,0 +1,18 @@
+diff --git a/src/auth_service.py b/src/auth_service.py
+index 5ae16cf..e8c8487 100644
+--- a/src/auth_service.py
++++ b/src/auth_service.py
+@@ -5,10 +5,10 @@ def initialize_user_session(user_id, session_timeout):
+     """
+     Start a new session for a verified user.
+ 
+-    session_timeout is in milliseconds.
++    session_timeout is in seconds.
+     """
+-    print(f"Session started for {user_id} with a {session_timeout}ms timeout.")
+-    return {"user_id": user_id, "timeout_ms": session_timeout}
++    print(f"Session started for {user_id} with a {session_timeout}s timeout.")
++    return {"user_id": user_id, "timeout_s": session_timeout}
+ 
+ 
+ def end_user_session(session):

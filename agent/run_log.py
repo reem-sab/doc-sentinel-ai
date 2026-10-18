@@ -48,7 +48,23 @@ def _clip(value, limit):
     return value
 
 
+def _result_text(value):
+    """Tool results usually arrive as MCP content blocks; show their text, not the JSON around it."""
+    if isinstance(value, dict) and isinstance(value.get("content"), list):
+        value = value["content"]
+    if isinstance(value, list) and value and all(isinstance(b, dict) and b.get("type") == "text" for b in value):
+        return "\n".join(b.get("text", "") for b in value)
+    if isinstance(value, dict) and "structuredPatch" in value:
+        # Edit and Write: the call above already shows the change.
+        return ("Created " if value.get("type") == "create" else "Edited ") + str(value.get("filePath", ""))
+    if isinstance(value, dict) and value.get("type") == "text" and isinstance(value.get("file"), dict):
+        f = value["file"]  # the built-in Read tool
+        return str(f.get("filePath", "")) + "\n\n" + str(f.get("content", ""))
+    return value
+
+
 def _preview(value, limit=REPORT_PREVIEW_CHARS):
+    value = _result_text(value)
     text = value if isinstance(value, str) else json.dumps(value, indent=2, ensure_ascii=False, default=str)
     return _clip(text, limit)
 
