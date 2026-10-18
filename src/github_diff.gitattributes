@@ -1,0 +1,7 @@
+# Diff drivers that make local `git diff` hunk headers match the `patch` text
+# GitHub's compare API returns. Used by drift_core.local_file_patches only.
+#
+# Verified against merged PRs in this repository (tests/test_github_diff_parity.py).
+# Markdown must stay on git's default driver: diff=markdown does NOT match GitHub.
+# Other languages are unverified, so they are left on the default for now.
+*.py diff=python

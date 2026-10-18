@@ -2,9 +2,7 @@ import os
 import sys
 import re
 import json
-import time
 from github import Github, Auth
-from google import genai
 from dotenv import load_dotenv
 
 # Anonymous, fail-open developer telemetry. Imported defensively so a missing
@@ -25,21 +23,20 @@ except Exception:  # pragma: no cover - telemetry is strictly best-effort
         def flush_telemetry(*args, **kwargs):
             pass
 
+# Drift check logic lives in drift_core so the GitHub Action and the MCP
+# server share it. Same dual import as telemetry: direct run or src.audit.
+try:
+    from drift_core import (
+        DocSentinelIntelligence, list_repo_md_files, match_docs, format_diff,
+        run_single_doc_audit, run_issue_audit, has_drift, is_critical, FALLBACK_DOC,
+    )
+except ImportError:
+    from src.drift_core import (
+        DocSentinelIntelligence, list_repo_md_files, match_docs, format_diff,
+        run_single_doc_audit, run_issue_audit, has_drift, is_critical, FALLBACK_DOC,
+    )
+
 load_dotenv()
-
-
-class DocSentinelIntelligence:
-    """Handles the AI-readability scoring logic."""
-    def __init__(self, content):
-        self.content = content
-
-    def calculate_score(self):
-        score = 100
-        pronouns = len(re.findall(r'(?m)^(\s*)(It|This|They|Those)\s', self.content))
-        score -= min(pronouns * 10, 40)
-        if not re.search(r'^## ', self.content, re.M):
-            score -= 20
-        return max(score, 0)
 
 
 def find_matching_docs(repo, changed_files):
@@ -47,38 +44,13 @@ def find_matching_docs(repo, changed_files):
     Multi-file support: For each changed code file, find matching .md files
     by comparing base names. Falls back to getting-started.md if no match found.
     """
-    all_md_files = []
     try:
-        contents = repo.get_contents("", ref="main")
-        stack = list(contents)
-        while stack:
-            item = stack.pop()
-            if item.type == "dir":
-                stack.extend(repo.get_contents(item.path, ref="main"))
-            elif item.path.endswith(".md"):
-                all_md_files.append(item.path)
+        all_md_files = list_repo_md_files(repo)
     except Exception as e:
         print("Could not scan repo for .md files: " + str(e))
-        return ["getting-started.md"]
+        return [FALLBACK_DOC]
 
-    matched_docs = set()
-
-    for changed_file in changed_files:
-        base_name = os.path.basename(changed_file)
-        base_name = os.path.splitext(base_name)[0].lower().replace("_", "-")
-
-        found = False
-        for md_file in all_md_files:
-            md_base = os.path.basename(md_file)
-            md_base = os.path.splitext(md_base)[0].lower().replace("_", "-")
-            if base_name in md_base or md_base in base_name:
-                matched_docs.add(md_file)
-                found = True
-
-        if not found:
-            matched_docs.add("getting-started.md")
-
-    return list(matched_docs) if matched_docs else ["getting-started.md"]
+    return match_docs(all_md_files, changed_files)
 
 
 def get_pr_data(repo, pr_number):
@@ -86,12 +58,9 @@ def get_pr_data(repo, pr_number):
     pr = repo.get_pull(int(pr_number))
 
     comparison = repo.compare(pr.base.sha, pr.head.sha)
-    diff_text = ""
-    affected_files = []
-    for file in comparison.files:
-        if file.patch:
-            diff_text += "File: " + file.filename + "\n" + file.patch + "\n\n"
-            affected_files.append(file.filename)
+    diff_text, affected_files = format_diff(
+        (file.filename, file.patch) for file in comparison.files
+    )
 
     return diff_text, affected_files, pr
 
@@ -166,81 +135,6 @@ def get_issue_data(repo, issue_number):
     return doc_content, doc_path, failure_summary, issue
 
 
-def run_single_doc_audit(diff, doc_content, doc_path, score):
-    """Runs a drift + style audit for a single doc file with severity scoring."""
-    client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-
-    prompt = (
-        "You are a Senior Technical Writer reviewing a pull request. "
-        "Perform a two-part audit and respond in this exact format:\n\n"
-        "**DRIFT AUDIT**\n"
-        "Start with YES or NO in bold. One sentence explaining what drifted and why it matters.\n"
-        "If YES, assign a severity label on the next line:\n"
-        "- 🔴 CRITICAL — drift that would break an AI agent or cause a production incident "
-        "(wrong function signatures, deprecated endpoints, missing required parameters, broken auth flows)\n"
-        "- 🟡 MINOR — drift that is inaccurate but recoverable by a human "
-        "(outdated examples, wrong variable names, minor description mismatches)\n"
-        "Then provide the corrected Markdown snippet under a heading called Suggested Fix.\n\n"
-        "**STYLE AUDIT**\n"
-        "Two to three bullet points maximum. Each bullet is one specific, actionable suggestion. "
-        "No preamble. No summary. No encouragement. Just the fixes.\n\n"
-        "The document currently has an AI-Readability score of " + str(score) + "%.\n\n"
-        "CODE DIFF:\n" + diff + "\n\n"
-        "EXISTING DOCS (" + doc_path + "):\n" + doc_content
-    )
-
-    for attempt in range(3):
-        try:
-            response = client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt
-            )
-            return response.text
-        except Exception as e:
-            if "429" in str(e) and attempt < 2:
-                print("Rate limited, retrying in 30 seconds...")
-                time.sleep(30)
-            else:
-                raise
-
-
-def run_issue_audit(doc_content, failure_summary, score):
-    """Runs a targeted audit based on a Doc Detective failure report with severity scoring."""
-    client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-
-    prompt = (
-        "You are a Senior Technical Writer. Doc Detective ran automated tests on a documentation file and found failures.\n\n"
-        "FAILURE SUMMARY:\n" + failure_summary + "\n\n"
-        "Respond in this exact format:\n\n"
-        "**FAILURE AUDIT**\n"
-        "One sentence identifying what in the documentation is inaccurate or missing that caused these failures.\n"
-        "Assign a severity label on the next line:\n"
-        "- 🔴 CRITICAL — failure that would break an AI agent or cause a production incident\n"
-        "- 🟡 MINOR — failure that is inaccurate but recoverable by a human\n\n"
-        "**SUGGESTED FIX**\n"
-        "The corrected Markdown snippet only. No explanation before or after it.\n\n"
-        "**STYLE AUDIT**\n"
-        "Two to three bullet points maximum. Each bullet is one specific, actionable suggestion. "
-        "No preamble. No summary. No encouragement. Just the fixes.\n\n"
-        "The document currently has an AI-Readability score of " + str(score) + "%.\n\n"
-        "EXISTING DOCS:\n" + doc_content
-    )
-
-    for attempt in range(3):
-        try:
-            response = client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt
-            )
-            return response.text
-        except Exception as e:
-            if "429" in str(e) and attempt < 2:
-                print("Rate limited, retrying in 30 seconds...")
-                time.sleep(30)
-            else:
-                raise
-
-
 if __name__ == "__main__":
     github_token = os.getenv("GITHUB_TOKEN")
     repo_name = os.getenv("REPO_NAME")
@@ -295,10 +189,10 @@ if __name__ == "__main__":
 
                 audit_result = run_single_doc_audit(diff, doc_content, doc_path, readability_score)
 
-                if "**YES**" in audit_result or audit_result.strip().startswith("YES"):
+                if has_drift(audit_result):
                     any_drift = True
                     drift_count += 1
-                if "🔴 CRITICAL" in audit_result:
+                if is_critical(audit_result):
                     any_critical = True
 
                 combined_comment += "### `" + doc_path + "`\n"
@@ -360,7 +254,7 @@ if __name__ == "__main__":
             # --- TELEMETRY: a Doc Detective failure is a caught drift anomaly ---
             track_event("drift_detected", {
                 "drift_count": 1,
-                "highest_severity": "critical" if "🔴 CRITICAL" in audit_result else "minor",
+                "highest_severity": "critical" if is_critical(audit_result) else "minor",
                 "files_audited": 1,
             })
 

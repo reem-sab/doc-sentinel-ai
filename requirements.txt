@@ -1,0 +1,11 @@
+# GitHub Action and historical audit (same packages the workflow installs)
+PyGithub
+google-genai
+python-dotenv
+posthog>=6.0.0
+
+# Drift check MCP server (MCP 2.x API: mcp.server.mcpserver.MCPServer)
+mcp>=2.2,<3
+
+# Tests
+pytest
