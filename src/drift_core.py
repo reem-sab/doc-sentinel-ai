@@ -21,6 +21,7 @@ import os
 import re
 import sys
 import time
+import hashlib
 import subprocess
 from dataclasses import dataclass, field, asdict
 
@@ -424,6 +425,10 @@ def read_local_doc(repo_root, doc_path):
         return f.read()
 
 
+def doc_sha256(content):
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
 def list_local_md_files(repo_root):
     """Every tracked or untracked (but not ignored) .md file in a local checkout."""
     out = _git(repo_root, "ls-files", "--cached", "--others", "--exclude-standard", "-z")
@@ -495,6 +500,9 @@ def audit_local_doc(repo_root, diff_range, doc_path, log=print):
     result = verdict.to_dict()
     result.update({
         "doc_path": doc_path,
+        # Fingerprint of the exact text checked, so callers can tell whether
+        # the doc changed after this verdict.
+        "doc_sha256": doc_sha256(doc_content),
         "diff_range": diff_range,
         "affected_files": affected_files,
         "readability_score": score,

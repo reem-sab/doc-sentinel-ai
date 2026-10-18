@@ -94,6 +94,7 @@ class DriftCheckState:
                 "latest_status": latest["status"],
                 "latest_severity": latest["severity"],
                 "latest_explanation": latest["explanation"],
+                "latest_doc_sha256": latest["doc_sha256"],
                 "checks_run": len(checks),
                 "failed_attempts": self.failed_count(doc_path),
                 "limit_reached": self.failed_count(doc_path) >= self.max_attempts,

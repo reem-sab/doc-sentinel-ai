@@ -7,5 +7,11 @@ posthog>=6.0.0
 # Drift check MCP server (MCP 2.x API: mcp.server.mcpserver.MCPServer)
 mcp>=2.2,<3
 
+# Remediation agent (Claude Agent SDK; bundles the Claude Code CLI)
+claude-agent-sdk>=0.2.168,<0.3
+
+# Eval cases
+pyyaml
+
 # Tests
 pytest
